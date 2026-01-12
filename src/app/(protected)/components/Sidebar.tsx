@@ -3,7 +3,7 @@ import { BarChart3, Building2, FileText, HelpCircle, Home, LogOut, Settings, Wal
 
 const nav = [
   { href: "/dashboard", label: "Visão Geral", icon: Home, active: true },
-  { href: "/dashboard/imoveis", label: "Imóveis", icon: Building2 },
+  { href: "/dashboard/deals", label: "Imóveis", icon: Building2 },
   { href: "/dashboard/investimentos", label: "Investimentos", icon: BarChart3 },
   { href: "/dashboard/carteira", label: "Carteira", icon: Wallet },
   { href: "/dashboard/relatorios", label: "Relatórios", icon: FileText },
@@ -32,7 +32,7 @@ export function Sidebar() {
                   key={item.href}
                   href={item.href}
                   className={[
-                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition",
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition w-full",
                     item.active
                       ? "bg-[#0B1323] text-white border border-[#141B29]"
                       : "text-[#9AA6BC] hover:bg-[#0B1323]/70 hover:text-white",
