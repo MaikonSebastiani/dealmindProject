@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design System (baseado no layout do Dashboard) */
+
+@layer base {
+  :root {
+    /* Core */
+    --background: 230 38% 3%;          /* #05060B */
+    --foreground: 0 0% 100%;
+
+    /* Surfaces */
+    --card: 220 35% 7%;                 /* #0B0F17 */
+    --card-foreground: 0 0% 100%;
+    --popover: 220 35% 7%;
+    --popover-foreground: 0 0% 100%;
+
+    /* Brand */
+    --primary: 224 100% 65%;            /* #4F7DFF */
+    --primary-foreground: 0 0% 100%;
+
+    /* Neutrals */
+    --secondary: 220 52% 9%;            /* #0B1323 */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 220 52% 9%;
+    --muted-foreground: 219 15% 55%;    /* #7C889E */
+    --accent: 220 52% 9%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Feedback */
+    --destructive: 354 100% 68%;        /* #FF5A6A */
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders / inputs */
+    --border: 220 34% 12%;              /* #141B29 */
+    --input: 220 34% 12%;
+    --ring: 227 100% 59%;               /* #2D5BFF */
+
+    /* Radius */
+    --radius: 16px;
+
+    /* Charts (mesma paleta do dashboard) */
+    --chart-1: 224 100% 65%;            /* primary */
+    --chart-2: 150 66% 52%;             /* success */
+    --chart-3: 38 92% 50%;              /* amber-ish */
+    --chart-4: 327 84% 62%;             /* pink-ish */
+    --chart-5: 219 20% 67%;             /* slate */
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer components {
+  /* Surfaces */
+  .ds-surface {
+    @apply bg-card text-card-foreground border border-border;
+    border-radius: 1rem;
+  }
+
+  /* Inputs */
+  .ds-input {
+    @apply h-9 w-full rounded-lg bg-secondary text-foreground placeholder:text-muted-foreground border border-border px-3 outline-none;
+  }
+  .ds-input:focus {
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.5);
+  }
+
+  /* Buttons (base) */
+  .ds-btn {
+    @apply inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium border border-border bg-secondary text-foreground;
+  }
+  .ds-btn-primary {
+    @apply bg-primary text-primary-foreground border-transparent;
+  }
+  .ds-btn-ghost {
+    @apply bg-transparent border-transparent text-muted-foreground hover:text-foreground;
+  }
+
+  /* Pills */
+  .ds-pill {
+    @apply inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-1 text-xs text-muted-foreground;
+  }
+}
+
