@@ -1,30 +1,38 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { TransactionItem } from "./TransactionItem"
+import { RoiMonthlyChart } from "./RoiMonthlyChart"
+
+const roiBars = [
+  { month: "Jan", roi: 7.2 },
+  { month: "Fev", roi: 7.8 },
+  { month: "Mar", roi: 6.9 },
+  { month: "Abr", roi: 8.3 },
+  { month: "Mai", roi: 8.8 },
+  { month: "Jun", roi: 9.1 },
+  { month: "Jul", roi: 8.4 },
+  { month: "Ago", roi: 8.9 },
+  { month: "Set", roi: 9.4 },
+  { month: "Out", roi: 8.7 },
+  { month: "Nov", roi: 8.1 },
+  { month: "Dez", roi: 8.5 },
+]
 
 export function TransactionsPanel() {
+  const average =
+    Math.round((roiBars.reduce((acc, b) => acc + b.roi, 0) / roiBars.length) * 10) / 10
+
   return (
     <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <Card className="lg:col-span-2 bg-[#0B0F17] border-[#141B29] rounded-2xl">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm">ROI Mensal (%)</CardTitle>
-            <div className="text-xs text-[#7C889E]">Média: 8.2%</div>
+            <div className="text-xs text-[#7C889E]">Média: {average}%</div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-64 rounded-xl border border-[#141B29] bg-gradient-to-b from-[#0B1323]/60 to-[#0B0F17] relative overflow-hidden">
-            <div className="absolute inset-0 opacity-25" style={{ backgroundImage: "linear-gradient(#141B29 1px, transparent 1px)", backgroundSize: "100% 48px" }} />
-            <div className="absolute inset-x-6 bottom-6 top-8 flex items-end gap-3">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex-1 rounded-md bg-[#5B6CFF]"
-                  style={{ height: `${45 + (i % 4) * 10}%`, opacity: 0.9 }}
-                />
-              ))}
-            </div>
-          </div>
+          <RoiMonthlyChart bars={roiBars} />
         </CardContent>
       </Card>
 
