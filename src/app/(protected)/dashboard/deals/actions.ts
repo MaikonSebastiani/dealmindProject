@@ -59,7 +59,7 @@ export async function createDealAction(formData: FormData) {
 
       monthlyCashFlow: 0,
       annualCashFlow: 0,
-      roi: viability.roiAnnualized,
+      roi: viability.roiTotal,
       capRate: 0,
       paybackYears: 0,
       riskNegativeCashFlow: viability.risk.negativeProfit,
@@ -108,7 +108,7 @@ export async function updateDealAction(dealId: string, formData: FormData) {
 
       monthlyCashFlow: 0,
       annualCashFlow: 0,
-      roi: viability.roiAnnualized,
+      roi: viability.roiTotal,
       capRate: 0,
       paybackYears: 0,
       riskNegativeCashFlow: viability.risk.negativeProfit,

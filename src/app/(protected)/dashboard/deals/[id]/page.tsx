@@ -1,19 +1,21 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { ArrowLeft, ChevronRight, Pencil, Upload } from "lucide-react"
+import { ArrowLeft, ChevronRight, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { prisma } from "@/lib/db/prisma"
 import { auth } from "@/auth"
 import { DeleteDealDialog } from "../components/DeleteDealDialog"
 import { deleteDealAction } from "../actions"
+import { calculateProjectViability } from "@/lib/domain/finance/calculateProjectViability"
+import type { ProjectInput } from "@/lib/domain/deals/projectInput"
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
 }
 
 function formatPercent(value: number) {
-  return `${value.toFixed(1)}%`
+  return `${(value * 100).toFixed(1)}%`
 }
 
 function DealKpiCard(props: { label: string; value: string; tone?: "neutral" | "good" | "bad" }) {
@@ -36,22 +38,69 @@ function DealKpiCard(props: { label: string; value: string; tone?: "neutral" | "
   )
 }
 
-function RiskIndicator(props: { label: string; active: boolean }) {
-  const dot = props.active ? "bg-[#FF5A6A]" : "bg-[#141B29]"
-  const text = props.active ? "text-white" : "text-[#9AA6BC]"
-  const badge = props.active ? "border-[#3A0B16] bg-[#2A0B12]" : "border-[#141B29] bg-[#0B0F17]"
+function Row(props: { label: string; value: string; tone?: "muted" | "neutral" | "good" | "bad" }) {
+  const valueCls =
+    props.tone === "good"
+      ? "text-[#32D583]"
+      : props.tone === "bad"
+        ? "text-[#FF5A6A]"
+        : props.tone === "muted"
+          ? "text-[#9AA6BC]"
+          : "text-white"
 
   return (
-    <div className={`flex items-center justify-between rounded-xl border px-3 py-2 ${badge}`}>
-      <div className="flex items-center gap-2 min-w-0">
-        <span className={`h-2 w-2 rounded-full ${dot}`} />
-        <span className={`text-sm truncate ${text}`}>{props.label}</span>
-      </div>
-      <span className={props.active ? "text-xs text-[#FF5A6A]" : "text-xs text-[#7C889E]"}>
-        {props.active ? "Atenção" : "Ok"}
-      </span>
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-[#7C889E]">{props.label}</span>
+      <span className={`${valueCls} text-right`}>{props.value}</span>
     </div>
   )
+}
+
+function SectionTitle(props: { children: React.ReactNode }) {
+  return <div className="text-xs uppercase tracking-wider text-[#7C889E]">{props.children}</div>
+}
+
+function Pill(props: { label: string; tone: "good" | "warn" | "bad" }) {
+  const cls =
+    props.tone === "good"
+      ? "bg-[#06221B] text-[#32D583] border-[#0B3A2C]"
+      : props.tone === "warn"
+        ? "bg-[#0B1323] text-[#F59E0B] border-[#141B29]"
+        : "bg-[#2A0B12] text-[#FF5A6A] border-[#3A0B16]"
+
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs ${cls}`}>
+      {props.label}
+    </span>
+  )
+}
+
+function ViabilityCard(props: { status: "Viável" | "Margem apertada" | "Inviável"; detail: string }) {
+  const tone: "good" | "warn" | "bad" =
+    props.status === "Viável" ? "good" : props.status === "Margem apertada" ? "warn" : "bad"
+
+  const titleColor = tone === "good" ? "text-[#32D583]" : tone === "warn" ? "text-[#F59E0B]" : "text-[#FF5A6A]"
+  const border = tone === "good" ? "border-[#0B3A2C]" : tone === "warn" ? "border-[#141B29]" : "border-[#3A0B16]"
+  const bg = tone === "good" ? "bg-[#06221B]" : tone === "warn" ? "bg-[#0B1323]" : "bg-[#2A0B12]"
+
+  return (
+    <Card className={`rounded-2xl border ${border} ${bg}`}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-4">
+          <CardTitle className="text-sm text-white">Diagnóstico de viabilidade</CardTitle>
+          <Pill label={props.status} tone={tone} />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className={`text-2xl font-semibold ${titleColor}`}>{props.status}</div>
+        <div className="mt-2 text-sm text-[#9AA6BC]">{props.detail}</div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function formatMonthsLabel(months: number) {
+  return months === 1 ? "1 mês" : `${months} meses`
 }
 
 export default async function DealDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -68,6 +117,63 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
     notFound()
   }
 
+  const projectInput: ProjectInput = {
+    acquisition: {
+      purchasePrice: deal.purchasePrice,
+      downPaymentPercent: deal.downPaymentPercent ?? 0,
+      auctioneerFeePercent: deal.auctioneerFeePercent ?? undefined,
+      itbiPercent: deal.itbiPercent ?? 0,
+      registryCost: deal.registryCost ?? 0,
+    },
+    financing: deal.financingEnabled
+      ? {
+          enabled: true,
+          interestRateAnnual: deal.interestRateAnnual ?? 0,
+          termMonths: deal.termMonths ?? 0,
+          amortizationType: (deal.amortizationType === "SAC" ? "SAC" : "PRICE") as any,
+        }
+      : undefined,
+    liabilities: {
+      iptuDebt: deal.iptuDebt ?? 0,
+      condoDebt: deal.condoDebt ?? 0,
+    },
+    operationAndExit: {
+      resalePrice: deal.resalePrice ?? 0,
+      resaleDiscountPercent: deal.resaleDiscountPercent ?? 0,
+      brokerFeePercent: deal.brokerFeePercent ?? 0,
+      monthlyCondoFee: deal.monthlyCondoFee ?? 0,
+      monthlyIptu: deal.monthlyIptu ?? 0,
+      expectedSaleMonths: deal.expectedSaleMonths ?? 12,
+    },
+  }
+
+  const viability = calculateProjectViability(projectInput)
+  const expectedSaleMonths = projectInput.operationAndExit.expectedSaleMonths
+
+  const itbiValue = (projectInput.acquisition.purchasePrice * projectInput.acquisition.itbiPercent) / 100
+  const auctioneerFeeValue = projectInput.acquisition.auctioneerFeePercent
+    ? (projectInput.acquisition.purchasePrice * projectInput.acquisition.auctioneerFeePercent) / 100
+    : 0
+
+  const saleDiscountValue = (projectInput.operationAndExit.resalePrice * projectInput.operationAndExit.resaleDiscountPercent) / 100
+  const saleAfterDiscount = projectInput.operationAndExit.resalePrice - saleDiscountValue
+  const brokerFeeValue = (saleAfterDiscount * projectInput.operationAndExit.brokerFeePercent) / 100
+
+  const condoTotal = projectInput.operationAndExit.monthlyCondoFee * expectedSaleMonths
+  const iptuTotal = projectInput.operationAndExit.monthlyIptu * expectedSaleMonths
+  const interestUntilSale = viability.financing?.interestPaidUntilSale ?? 0
+  const remainingBalanceAtSale = viability.financing?.remainingBalanceAtSale ?? 0
+
+  const viabilityStatus: "Viável" | "Margem apertada" | "Inviável" =
+    viability.profit <= 0 ? "Inviável" : viability.roiTotal < 0.1 ? "Margem apertada" : "Viável"
+
+  const viabilityDetail =
+    viabilityStatus === "Inviável"
+      ? "O projeto não se paga no cenário atual. Ajuste preço, custos ou prazo para reavaliar."
+      : viabilityStatus === "Margem apertada"
+        ? "A rentabilidade anualizada é baixa para o risco do projeto. Reavalie premissas e margem."
+        : "Boa relação risco/retorno no cenário atual. Vale avançar para diligência e negociação."
+
   async function deleteFromDialog(formData: FormData) {
     "use server"
     const dealId = String(formData.get("dealId") ?? "")
@@ -79,7 +185,7 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
     <>
       <header className="sticky top-0 z-40 bg-[#05060B]/80 backdrop-blur border-b border-[#141B29]">
         <div className="flex items-center justify-between px-10 py-5">
-          <div className="space-y-1">
+          <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2 text-xs text-[#7C889E]">
               <Link href="/dashboard/deals" className="hover:text-white">
                 Deals
@@ -87,7 +193,14 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
               <ChevronRight className="h-3 w-3" />
               <span>Detalhe</span>
             </div>
-            <h1 className="text-xl font-semibold">{deal.propertyName ?? "Deal"}</h1>
+            <h1 className="text-xl font-semibold truncate">{deal.propertyName ?? "Deal"}</h1>
+            <div className="text-sm text-[#7C889E] flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span>Compra: <span className="text-white">{formatBRL(projectInput.acquisition.purchasePrice)}</span></span>
+              <span className="text-[#141B29]">•</span>
+              <span>Venda: <span className="text-white">{formatBRL(projectInput.operationAndExit.resalePrice)}</span></span>
+              <span className="text-[#141B29]">•</span>
+              <span>Venda estimada em <span className="text-white">{formatMonthsLabel(expectedSaleMonths)}</span></span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -98,7 +211,7 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
             >
               <Link href={`/dashboard/deals/${deal.id}/edit`}>
                 <Pencil className="h-4 w-4 mr-2" />
-                Editar
+                Editar premissas
               </Link>
             </Button>
             <DeleteDealDialog
@@ -111,7 +224,173 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
       </header>
 
       <div className="px-10 py-6 space-y-6">
-        <div className="flex items-center justify-between">
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <DealKpiCard
+            label="Lucro Líquido"
+            value={formatBRL(viability.profit)}
+            tone={viability.profit < 0 ? "bad" : "good"}
+          />
+          <DealKpiCard label="ROI" value={formatPercent(viability.roiTotal)} />
+          <DealKpiCard label="Capital Necessário" value={formatBRL(viability.initialInvestment)} />
+        </section>
+
+        <ViabilityCard status={viabilityStatus} detail={viabilityDetail} />
+
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Linha do tempo do projeto</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5 text-sm">
+              <div className="space-y-2">
+                <SectionTitle>Mês 0</SectionTitle>
+                <Row label="Compra" value={formatBRL(projectInput.acquisition.purchasePrice)} />
+                <Row
+                  label="Entrada"
+                  value={formatBRL((projectInput.acquisition.purchasePrice * projectInput.acquisition.downPaymentPercent) / 100)}
+                />
+                <Row
+                  label="Custos iniciais + dívidas"
+                  value={formatBRL(viability.acquisitionCosts)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <SectionTitle>Meses 1 → {expectedSaleMonths}</SectionTitle>
+                <Row label="Condomínio mensal" value={formatBRL(projectInput.operationAndExit.monthlyCondoFee)} />
+                <Row label="IPTU mensal" value={formatBRL(projectInput.operationAndExit.monthlyIptu)} />
+                {viability.financing ? (
+                  <Row
+                    label="Juros (mês 1, estimado)"
+                    value={formatBRL(viability.financing.financedPrincipal * viability.financing.monthlyRate)}
+                  />
+                ) : (
+                  <Row label="Juros do financiamento" value="—" tone="muted" />
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <SectionTitle>Mês {expectedSaleMonths}</SectionTitle>
+                <Row label="Venda (valor esperado)" value={formatBRL(projectInput.operationAndExit.resalePrice)} />
+                <Row label="Deságio aplicado" value={`- ${formatBRL(saleDiscountValue)}`} tone="muted" />
+                <Row label="Comissão de corretagem" value={`- ${formatBRL(brokerFeeValue)}`} tone="muted" />
+                {viability.financing ? (
+                  <Row
+                    label="Quitação do saldo devedor"
+                    value={`- ${formatBRL(remainingBalanceAtSale)}`}
+                    tone="muted"
+                  />
+                ) : null}
+                <Row label="Resultado final" value={formatBRL(viability.profit)} tone={viability.profit < 0 ? "bad" : "good"} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl lg:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Breakdown financeiro</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <SectionTitle>Custos de entrada</SectionTitle>
+                  <Row label="Valor de compra" value={formatBRL(projectInput.acquisition.purchasePrice)} />
+                  <Row label="ITBI" value={formatBRL(itbiValue)} />
+                  <Row label="Registro" value={formatBRL(projectInput.acquisition.registryCost)} />
+                  {auctioneerFeeValue > 0 ? (
+                    <Row label="Comissão do leiloeiro" value={formatBRL(auctioneerFeeValue)} />
+                  ) : (
+                    <Row label="Comissão do leiloeiro" value="—" tone="muted" />
+                  )}
+                  <Row label="Dívida IPTU" value={formatBRL(projectInput.liabilities.iptuDebt)} />
+                  <Row label="Dívida condomínio" value={formatBRL(projectInput.liabilities.condoDebt)} />
+                </div>
+
+                <div className="space-y-3">
+                  <SectionTitle>Custos no período</SectionTitle>
+                  <Row label={`Condomínio total (${formatMonthsLabel(expectedSaleMonths)})`} value={formatBRL(condoTotal)} />
+                  <Row label={`IPTU total (${formatMonthsLabel(expectedSaleMonths)})`} value={formatBRL(iptuTotal)} />
+                  <Row label="Juros até a venda" value={formatBRL(interestUntilSale)} />
+                  {viability.financing ? (
+                    <Row label="Saldo devedor na venda" value={formatBRL(remainingBalanceAtSale)} />
+                  ) : (
+                    <Row label="Saldo devedor na venda" value="—" tone="muted" />
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <SectionTitle>Custos de saída</SectionTitle>
+                  <Row label="Deságio sobre venda" value={formatBRL(saleDiscountValue)} />
+                  <Row label="Comissão do corretor" value={formatBRL(brokerFeeValue)} />
+                </div>
+
+                <div className="space-y-3">
+                  <SectionTitle>Resumo</SectionTitle>
+                  <Row label="Capital necessário (entrada + custos + dívidas)" value={formatBRL(viability.initialInvestment)} />
+                  <Row label="Venda líquida" value={formatBRL(viability.saleNet)} />
+                  {viability.financing ? (
+                    <Row label="Venda líquida (após quitar financiamento)" value={formatBRL(viability.saleNetAfterLoan)} />
+                  ) : (
+                    <Row label="Venda líquida (após quitar financiamento)" value={formatBRL(viability.saleNet)} />
+                  )}
+                  <Row
+                    label={`Imposto de renda (estimado ${(viability.incomeTaxRate * 100).toFixed(0)}%)`}
+                    value={`- ${formatBRL(viability.incomeTax)}`}
+                    tone="muted"
+                  />
+                  <Row label="Lucro líquido" value={formatBRL(viability.profit)} tone={viability.profit < 0 ? "bad" : "good"} />
+                  <Row
+                    label="Lucro após IR"
+                    value={formatBRL(viability.profitAfterTax)}
+                    tone={viability.profitAfterTax < 0 ? "bad" : "good"}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        {viability.financing ? (
+          <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Financiamento</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 text-sm">
+              <div className="space-y-1">
+                <div className="text-xs text-[#7C889E]">Tipo</div>
+                <div className="text-white font-medium">{viability.financing.amortizationType}</div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs text-[#7C889E]">Taxa anual</div>
+                <div className="text-white font-medium">{viability.financing.interestRateAnnual.toFixed(1)}%</div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs text-[#7C889E]">Prazo total</div>
+                <div className="text-white font-medium">{formatMonthsLabel(viability.financing.termMonths)}</div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs text-[#7C889E]">Parcela inicial (estimada)</div>
+                <div className="text-white font-medium">{formatBRL(viability.financing.initialInstallmentEstimate)}</div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs text-[#7C889E]">Juros até a venda</div>
+                <div className="text-white font-medium">{formatBRL(viability.financing.interestPaidUntilSale)}</div>
+              </div>
+            </CardContent>
+            <div className="px-6 pb-6">
+              <div className="rounded-xl border border-[#141B29] bg-[#05060B] px-4 py-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-[#9AA6BC]">Saldo devedor estimado na venda ({formatMonthsLabel(viability.financing.monthsConsidered)})</div>
+                  <div className="text-white font-medium">{formatBRL(viability.financing.remainingBalanceAtSale)}</div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        ) : null}
+
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
           <Button
             asChild
             variant="outline"
@@ -119,111 +398,17 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
           >
             <Link href="/dashboard/deals">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
+              Voltar para Deals
+            </Link>
+          </Button>
+
+          <Button className="bg-[#4F7DFF] hover:bg-[#2D5BFF]" asChild>
+            <Link href={`/dashboard/deals/${deal.id}/edit`}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Editar premissas
             </Link>
           </Button>
         </div>
-
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <DealKpiCard label="Valor de compra" value={formatBRL(deal.purchasePrice)} />
-          <DealKpiCard
-            label="Cash Flow mensal"
-            value={formatBRL(deal.monthlyCashFlow)}
-            tone={deal.monthlyCashFlow < 0 ? "bad" : "good"}
-          />
-          <DealKpiCard label="ROI" value={formatPercent(deal.roi)} />
-          <DealKpiCard label="Cap Rate" value={formatPercent(deal.capRate)} />
-        </section>
-
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Informações do imóvel</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-[#7C889E]">Endereço</span>
-                <span className="text-white text-right">{deal.address ?? "—"}</span>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-[#7C889E]">Tipo</span>
-                <span className="text-white">{deal.propertyType ?? "—"}</span>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-[#7C889E]">Status</span>
-                <span className="inline-flex items-center rounded-lg border border-[#141B29] bg-[#0B1323] px-2 py-1 text-xs text-[#9AA6BC]">
-                  {deal.status}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-[#7C889E]">Criado em</span>
-                <span className="text-white">
-                  {new Date(deal.createdAt).toLocaleDateString("pt-BR")}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Análise financeira</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-[#7C889E]">Preço de compra</span>
-                <span className="text-white">{formatBRL(deal.purchasePrice)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-[#7C889E]">Custos de aquisição</span>
-                <span className="text-white">{formatBRL(deal.acquisitionCosts)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-[#7C889E]">Despesas mensais</span>
-                <span className="text-white">{formatBRL(deal.monthlyExpenses)}</span>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-[#7C889E]">IPTU anual</span>
-                <span className="text-white">{formatBRL(deal.annualPropertyTax)}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Indicadores de risco</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <RiskIndicator label="Cash Flow negativo" active={deal.riskNegativeCashFlow} />
-              <RiskIndicator label="ROI baixo" active={deal.riskLowROI} />
-              <RiskIndicator label="Alavancagem alta" active={deal.riskHighLeverage} />
-            </CardContent>
-          </Card>
-        </section>
-
-        <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm">Documentos</CardTitle>
-              <Button type="button" className="bg-[#4F7DFF] hover:bg-[#2D5BFF]">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload documento
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="divide-y divide-[#141B29]">
-              {[
-                { id: "doc_01", name: "Matrícula do imóvel", status: "Pendente" },
-                { id: "doc_02", name: "Contrato de compra e venda", status: "Pendente" },
-              ].map((doc) => (
-                <div key={doc.id} className="flex items-center justify-between py-3 text-sm">
-                  <div className="text-white">{doc.name}</div>
-                  <span className="text-xs text-[#9AA6BC]">{doc.status}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </>
   )

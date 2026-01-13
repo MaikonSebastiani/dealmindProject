@@ -123,13 +123,17 @@ function TextField(props: {
   error?: string
   disabled?: boolean
   placeholder?: string
+  optionalHint?: string
   className?: string
 }) {
   return (
     <div className={props.className}>
-      <label htmlFor={props.name} className="text-sm text-[#9AA6BC]">
-        {props.label}
-      </label>
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor={props.name} className="text-sm text-[#9AA6BC]">
+          {props.label}
+        </label>
+        {props.optionalHint ? <span className="text-xs text-[#7C889E]">{props.optionalHint}</span> : null}
+      </div>
       <Input
         id={props.name}
         name={props.name}
@@ -140,7 +144,7 @@ function TextField(props: {
         onChange={(e) => props.onChange(e.target.value)}
         onBlur={props.onBlur}
         placeholder={props.placeholder}
-        className="mt-2 h-10 bg-[#05060B] border-[#141B29] text-white placeholder-[#7C889E] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-[#2D5BFF] disabled:opacity-60"
+        className="h-10 bg-[#05060B] border-[#141B29] text-white placeholder-[#7C889E] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-[#2D5BFF] disabled:opacity-60"
       />
       {props.error ? <div className="mt-1 text-xs text-rose-400">{props.error}</div> : null}
     </div>
@@ -237,7 +241,7 @@ export function DealForm(props: {
       <div className="px-6 md:px-10 py-6 space-y-6">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <SectionCard title="Aquisição">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               <Controller
                 name="acquisition.purchasePrice"
                 control={control}
@@ -250,6 +254,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.acquisition?.purchasePrice?.message as string | undefined}
+                    className="md:col-span-6"
                   />
                 )}
               />
@@ -265,6 +270,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.acquisition?.downPaymentPercent?.message as string | undefined}
+                    className="md:col-span-3"
                   />
                 )}
               />
@@ -280,6 +286,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.acquisition?.auctioneerFeePercent?.message as string | undefined}
+                    className="md:col-span-3"
                   />
                 )}
               />
@@ -295,6 +302,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.acquisition?.itbiPercent?.message as string | undefined}
+                    className="md:col-span-3"
                   />
                 )}
               />
@@ -310,6 +318,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.acquisition?.registryCost?.message as string | undefined}
+                    className="md:col-span-3"
                   />
                 )}
               />
@@ -331,7 +340,7 @@ export function DealForm(props: {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                 <Controller
                   name="financing.interestRateAnnual"
                   control={control}
@@ -345,6 +354,7 @@ export function DealForm(props: {
                       onChange={field.onChange}
                       onBlur={field.onBlur}
                       error={errors.financing?.interestRateAnnual?.message as string | undefined}
+                      className="md:col-span-4"
                     />
                   )}
                 />
@@ -362,6 +372,7 @@ export function DealForm(props: {
                       onBlur={field.onBlur}
                       error={errors.financing?.termMonths?.message as string | undefined}
                       placeholder="360"
+                      className="md:col-span-4"
                     />
                   )}
                 />
@@ -369,14 +380,17 @@ export function DealForm(props: {
                   name="financing.amortizationType"
                   control={control}
                   render={({ field }) => (
-                    <div>
-                      <label className="text-sm text-[#9AA6BC]">Amortization</label>
+                    <div className="md:col-span-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="text-sm text-[#9AA6BC]">Amortization</label>
+                        <span className="text-xs text-[#7C889E]">&nbsp;</span>
+                      </div>
                       <select
                         disabled={!financingEnabled}
                         value={field.value}
                         onChange={field.onChange}
                         onBlur={field.onBlur}
-                        className="mt-2 h-10 w-full rounded-md bg-[#05060B] border border-[#141B29] px-3 text-sm text-white outline-none focus:border-[#2D5BFF] disabled:opacity-60"
+                        className="h-10 w-full rounded-md bg-[#05060B] border border-[#141B29] px-3 text-sm text-white outline-none focus:border-[#2D5BFF] disabled:opacity-60"
                       >
                         <option value="PRICE">PRICE</option>
                         <option value="SAC">SAC</option>
@@ -392,7 +406,7 @@ export function DealForm(props: {
           </SectionCard>
 
           <SectionCard title="Dívidas herdadas">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               <Controller
                 name="liabilities.iptuDebt"
                 control={control}
@@ -405,6 +419,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.liabilities?.iptuDebt?.message as string | undefined}
+                    className="md:col-span-6"
                   />
                 )}
               />
@@ -420,6 +435,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.liabilities?.condoDebt?.message as string | undefined}
+                    className="md:col-span-6"
                   />
                 )}
               />
@@ -427,7 +443,7 @@ export function DealForm(props: {
           </SectionCard>
 
           <SectionCard title="Operação e saída">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               <Controller
                 name="operationAndExit.resalePrice"
                 control={control}
@@ -440,6 +456,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.operationAndExit?.resalePrice?.message as string | undefined}
+                    className="md:col-span-6"
                   />
                 )}
               />
@@ -455,6 +472,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.operationAndExit?.resaleDiscountPercent?.message as string | undefined}
+                    className="md:col-span-3"
                   />
                 )}
               />
@@ -470,6 +488,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.operationAndExit?.brokerFeePercent?.message as string | undefined}
+                    className="md:col-span-3"
                   />
                 )}
               />
@@ -485,6 +504,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.operationAndExit?.monthlyCondoFee?.message as string | undefined}
+                    className="md:col-span-6"
                   />
                 )}
               />
@@ -500,6 +520,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.operationAndExit?.monthlyIptu?.message as string | undefined}
+                    className="md:col-span-3"
                   />
                 )}
               />
@@ -516,6 +537,7 @@ export function DealForm(props: {
                     onBlur={field.onBlur}
                     error={errors.operationAndExit?.expectedSaleMonths?.message as string | undefined}
                     placeholder="12"
+                    className="md:col-span-3"
                   />
                 )}
               />
