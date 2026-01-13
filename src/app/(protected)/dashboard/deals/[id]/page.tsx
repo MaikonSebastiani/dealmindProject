@@ -230,7 +230,7 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
             value={formatBRL(viability.profit)}
             tone={viability.profit < 0 ? "bad" : "good"}
           />
-          <DealKpiCard label="ROI" value={formatPercent(viability.roiTotal)} />
+          <DealKpiCard label="ROI" value={formatPercent(viability.roiAfterTax)} />
           <DealKpiCard label="Capital Necessário" value={formatBRL(viability.initialInvestment)} />
         </section>
 

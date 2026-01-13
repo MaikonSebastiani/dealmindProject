@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { prisma } from "@/lib/db/prisma"
 import { auth } from "@/auth"
+import { calculateProjectViability } from "@/lib/domain/finance/calculateProjectViability"
+import type { ProjectInput } from "@/lib/domain/deals/projectInput"
 
 type RiskLevel = "baixo" | "médio" | "alto"
 
@@ -11,9 +13,9 @@ type DealListItem = {
   id: string
   name: string
   purchasePrice: number
-  monthlyCashFlow: number
-  roiPercent: number
-  capRatePercent: number
+  profit: number
+  roi: number
+  capitalNeeded: number
   risk: RiskLevel
 }
 
@@ -22,7 +24,7 @@ function formatBRL(value: number) {
 }
 
 function formatPercent(value: number) {
-  return `${value.toFixed(1)}%`
+  return `${(value * 100).toFixed(1)}%`
 }
 
 function RiskPill({ risk }: { risk: RiskLevel }) {
@@ -56,19 +58,19 @@ function DealRow({ deal }: { deal: DealListItem }) {
       </td>
       <td className="p-0 text-right">
         <Link href={href} className="block py-4 text-sm">
-          <span className={deal.monthlyCashFlow < 0 ? "text-[#FF5A6A]" : "text-[#32D583]"}>
-            {formatBRL(deal.monthlyCashFlow)}
+          <span className={deal.profit < 0 ? "text-[#FF5A6A]" : "text-[#32D583]"}>
+            {formatBRL(deal.profit)}
           </span>
         </Link>
       </td>
       <td className="p-0 text-right">
         <Link href={href} className="block py-4 text-sm text-white">
-          {formatPercent(deal.roiPercent)}
+          {formatPercent(deal.roi)}
         </Link>
       </td>
       <td className="p-0 text-right">
         <Link href={href} className="block py-4 text-sm text-white">
-          {formatPercent(deal.capRatePercent)}
+          {formatBRL(deal.capitalNeeded)}
         </Link>
       </td>
       <td className="p-0 text-right">
@@ -135,6 +137,38 @@ export default async function DealsPage() {
       : []
 
   const deals: DealListItem[] = items.map((d) => {
+    const input: ProjectInput = {
+      acquisition: {
+        purchasePrice: d.purchasePrice,
+        downPaymentPercent: d.downPaymentPercent ?? 0,
+        auctioneerFeePercent: d.auctioneerFeePercent ?? undefined,
+        itbiPercent: d.itbiPercent ?? 0,
+        registryCost: d.registryCost ?? 0,
+      },
+      financing: d.financingEnabled
+        ? {
+            enabled: true,
+            interestRateAnnual: d.interestRateAnnual ?? 0,
+            termMonths: d.termMonths ?? 0,
+            amortizationType: (d.amortizationType === "SAC" ? "SAC" : "PRICE") as any,
+          }
+        : undefined,
+      liabilities: {
+        iptuDebt: d.iptuDebt ?? 0,
+        condoDebt: d.condoDebt ?? 0,
+      },
+      operationAndExit: {
+        resalePrice: d.resalePrice ?? 0,
+        resaleDiscountPercent: d.resaleDiscountPercent ?? 0,
+        brokerFeePercent: d.brokerFeePercent ?? 0,
+        monthlyCondoFee: d.monthlyCondoFee ?? 0,
+        monthlyIptu: d.monthlyIptu ?? 0,
+        expectedSaleMonths: d.expectedSaleMonths ?? 12,
+      },
+    }
+
+    const viability = calculateProjectViability(input)
+
     const risk: RiskLevel =
       d.riskNegativeCashFlow || d.riskLowROI
         ? "alto"
@@ -146,9 +180,9 @@ export default async function DealsPage() {
       id: d.id,
       name: d.propertyName ?? "Sem nome",
       purchasePrice: d.purchasePrice,
-      monthlyCashFlow: d.monthlyCashFlow,
-      roiPercent: d.roi,
-      capRatePercent: d.capRate,
+      profit: viability.profitAfterTax,
+      roi: viability.roiAfterTax,
+      capitalNeeded: viability.initialInvestment,
       risk,
     }
   })
@@ -215,9 +249,9 @@ export default async function DealsPage() {
                     <tr className="border-b border-[#141B29]">
                       <th className="py-3 text-left">Imóvel</th>
                       <th className="py-3 text-right">Compra</th>
-                      <th className="py-3 text-right">Cash Flow (mês)</th>
+                      <th className="py-3 text-right">Lucro Líquido</th>
                       <th className="py-3 text-right">ROI</th>
-                      <th className="py-3 text-right">Cap Rate</th>
+                      <th className="py-3 text-right">Capital Necessário</th>
                       <th className="py-3 text-right">Risco</th>
                       <th className="py-3 w-12" />
                     </tr>
