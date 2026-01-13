@@ -243,7 +243,7 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
             </CardHeader>
             <CardContent className="space-y-5 text-sm">
               <div className="space-y-2">
-                <SectionTitle>Mês 0</SectionTitle>
+                {/* <SectionTitle>Mês 0</SectionTitle> */}
                 <Row label="Compra" value={formatBRL(projectInput.acquisition.purchasePrice)} />
                 <Row
                   label="Entrada"
