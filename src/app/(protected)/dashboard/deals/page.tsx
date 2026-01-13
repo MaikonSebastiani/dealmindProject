@@ -2,6 +2,8 @@ import Link from "next/link"
 import { Search, Plus, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { prisma } from "@/lib/db/prisma"
+import { auth } from "@/auth"
 
 type RiskLevel = "baixo" | "médio" | "alto"
 
@@ -14,36 +16,6 @@ type DealListItem = {
   capRatePercent: number
   risk: RiskLevel
 }
-
-const mockDeals: DealListItem[] = [
-  {
-    id: "d_01",
-    name: "Apartamento Centro (SP)",
-    purchasePrice: 850_000,
-    monthlyCashFlow: 1200,
-    roiPercent: 8.4,
-    capRatePercent: 6.2,
-    risk: "baixo",
-  },
-  {
-    id: "d_02",
-    name: "Casa Jardins (SP)",
-    purchasePrice: 1_200_000,
-    monthlyCashFlow: 2150,
-    roiPercent: 9.1,
-    capRatePercent: 5.7,
-    risk: "médio",
-  },
-  {
-    id: "d_03",
-    name: "Loja Comercial (RJ)",
-    purchasePrice: 450_000,
-    monthlyCashFlow: -300,
-    roiPercent: 6.8,
-    capRatePercent: 7.4,
-    risk: "alto",
-  },
-]
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
@@ -139,9 +111,11 @@ function EmptyState() {
           <div className="text-sm text-[#7C889E]">
             Crie seu primeiro deal para começar a acompanhar ROI, cash flow e risco.
           </div>
-          <Button className="bg-[#4F7DFF] hover:bg-[#2D5BFF]">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Deal
+          <Button asChild className="bg-[#4F7DFF] hover:bg-[#2D5BFF]">
+            <Link href="/dashboard/deals/new">
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Deal
+            </Link>
           </Button>
         </div>
       </CardContent>
@@ -149,13 +123,41 @@ function EmptyState() {
   )
 }
 
-export default function DealsPage() {
+export default async function DealsPage() {
+  const session = await auth()
+
+  const items =
+    session?.user?.id
+      ? await prisma.deal.findMany({
+          where: { userId: session.user.id },
+          orderBy: { createdAt: "desc" },
+        })
+      : []
+
+  const deals: DealListItem[] = items.map((d) => {
+    const risk: RiskLevel =
+      d.riskNegativeCashFlow || d.riskLowROI
+        ? "alto"
+        : d.riskHighLeverage
+          ? "médio"
+          : "baixo"
+
+    return {
+      id: d.id,
+      name: d.propertyName ?? "Sem nome",
+      purchasePrice: d.purchasePrice,
+      monthlyCashFlow: d.monthlyCashFlow,
+      roiPercent: d.roi,
+      capRatePercent: d.capRate,
+      risk,
+    }
+  })
+
   function getUiState(): "loading" | "empty" | "ready" {
-    return "ready"
+    return deals.length === 0 ? "empty" : "ready"
   }
 
   const state = getUiState()
-  const deals = state === "ready" ? mockDeals : []
 
   return (
     <>
@@ -165,9 +167,11 @@ export default function DealsPage() {
             <h1 className="text-xl font-semibold">Deals</h1>
             <p className="text-sm text-[#7C889E]">Lista de negócios imobiliários analisados</p>
           </div>
-          <Button className="bg-[#4F7DFF] hover:bg-[#2D5BFF]">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Deal
+          <Button asChild className="bg-[#4F7DFF] hover:bg-[#2D5BFF]">
+            <Link href="/dashboard/deals/new">
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Deal
+            </Link>
           </Button>
         </div>
       </header>
@@ -196,11 +200,7 @@ export default function DealsPage() {
           </CardContent>
         </Card>
 
-        {state === "loading" ? (
-          <DealsSkeleton />
-        ) : state === "empty" ? (
-          <EmptyState />
-        ) : (
+        {state === "loading" ? <DealsSkeleton /> : state === "empty" ? <EmptyState /> : (
           <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">

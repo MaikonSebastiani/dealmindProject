@@ -1,0 +1,16 @@
+-- AlterTable
+ALTER TABLE "Deal" ADD COLUMN     "amortizationType" TEXT,
+ADD COLUMN     "auctioneerFeePercent" DOUBLE PRECISION,
+ADD COLUMN     "brokerFeePercent" DOUBLE PRECISION,
+ADD COLUMN     "condoDebt" DOUBLE PRECISION,
+ADD COLUMN     "downPaymentPercent" DOUBLE PRECISION,
+ADD COLUMN     "financingEnabled" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "interestRateAnnual" DOUBLE PRECISION,
+ADD COLUMN     "iptuDebt" DOUBLE PRECISION,
+ADD COLUMN     "itbiPercent" DOUBLE PRECISION,
+ADD COLUMN     "monthlyCondoFee" DOUBLE PRECISION,
+ADD COLUMN     "monthlyIptu" DOUBLE PRECISION,
+ADD COLUMN     "registryCost" DOUBLE PRECISION,
+ADD COLUMN     "resaleDiscountPercent" DOUBLE PRECISION,
+ADD COLUMN     "resalePrice" DOUBLE PRECISION,
+ADD COLUMN     "termMonths" INTEGER;

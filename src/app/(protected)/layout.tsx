@@ -6,7 +6,7 @@ export default async function DashboardGroupLayout({ children }: { children: Rea
   const session = await auth()
 
   if (!session) {
-    redirect("/login?callbackUrl=/dashboard")
+    redirect("/?callbackUrl=/dashboard")
   }
 
   return (

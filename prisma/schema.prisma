@@ -24,6 +24,11 @@ model Deal {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
 
+  propertyName String?
+  propertyType String?
+  address      String?
+  status       String   @default("Em análise")
+
   purchasePrice        Float
   acquisitionCosts     Float
   monthlyRent          Float
@@ -32,6 +37,26 @@ model Deal {
 
   downPayment          Float?
   monthlyInstallment   Float?
+
+  downPaymentPercent      Float?
+  auctioneerFeePercent    Float?
+  itbiPercent             Float?
+  registryCost            Float?
+
+  financingEnabled        Boolean @default(false)
+  interestRateAnnual      Float?
+  termMonths              Int?
+  amortizationType        String?
+
+  iptuDebt                Float?
+  condoDebt               Float?
+
+  resalePrice             Float?
+  resaleDiscountPercent   Float?
+  brokerFeePercent        Float?
+  monthlyCondoFee         Float?
+  monthlyIptu             Float?
+  expectedSaleMonths      Int     @default(12)
 
   monthlyCashFlow      Float
   annualCashFlow       Float
@@ -44,6 +69,7 @@ model Deal {
   riskHighLeverage     Boolean
 
   createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@index([userId, createdAt])
 }
