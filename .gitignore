@@ -7,3 +7,7 @@ dist
 package-lock.json
 
 /generated/prisma
+
+# SQLite database
+*.db
+*.db-journal

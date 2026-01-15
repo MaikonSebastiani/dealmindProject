@@ -15,7 +15,7 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
 
   const deal = await prisma.deal.findFirst({
     where: { id, userId: session.user.id },
-  })
+  }) as any
 
   if (!deal) {
     notFound()
@@ -24,7 +24,6 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
   const action = updateDealAction.bind(null, deal.id)
 
   const money = (v: number | null) => (typeof v === "number" ? formatNumberToPtBRMoney(v) : "0,00")
-  const moneyOptional = (v: number | null) => (typeof v === "number" ? formatNumberToPtBRMoney(v) : "")
   const percent = (v: number | null) => (typeof v === "number" ? String(v) : "0")
   const percentOptional = (v: number | null) => (typeof v === "number" ? String(v) : "")
   const int = (v: number | null, fallback: string) => (typeof v === "number" ? String(v) : fallback)
@@ -39,6 +38,11 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
       ]}
       submitLabel="Salvar alterações"
       cancelHref={`/dashboard/deals/${deal.id}`}
+      dealId={deal.id}
+      existingDocuments={{
+        propertyRegistryFileName: deal.propertyRegistryFileName,
+        auctionNoticeFileName: deal.auctionNoticeFileName,
+      }}
       defaultValues={{
         acquisition: {
           purchasePrice: money(deal.purchasePrice),
@@ -51,7 +55,7 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
           enabled: deal.financingEnabled,
           interestRateAnnual: percent(deal.interestRateAnnual),
           termMonths: int(deal.termMonths, "360"),
-          amortizationType: (deal.amortizationType === "SAC" ? "SAC" : "PRICE") as any,
+          amortizationType: (deal.amortizationType === "SAC" ? "SAC" : "PRICE") as "SAC" | "PRICE",
         },
         liabilities: {
           iptuDebt: money(deal.iptuDebt),
@@ -70,5 +74,3 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
     />
   )
 }
-
-

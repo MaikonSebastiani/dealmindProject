@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useTransition } from "react"
+import { FileText, Upload, X, Trash2 } from "lucide-react"
+import { useMemo, useRef, useState, useTransition } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -162,6 +163,109 @@ function SectionCard(props: { title: string; children: React.ReactNode }) {
   )
 }
 
+function DocumentUpload(props: {
+  label: string
+  description: string
+  inputRef: React.RefObject<HTMLInputElement | null>
+  selectedFileName: string | null
+  existingFileName: string | null
+  onFileSelect: (file: File | null) => void
+  onDelete: () => void
+  markedForDeletion: boolean
+}) {
+  const hasNewFile = Boolean(props.selectedFileName)
+  const hasExistingFile = Boolean(props.existingFileName) && !props.markedForDeletion
+
+  return (
+    <div className="rounded-2xl border border-[#141B29] bg-[#05060B] p-4">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B0F17] border border-[#141B29]">
+          <FileText className="h-5 w-5 text-[#7C889E]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-white">{props.label}</div>
+          <div className="text-xs text-[#7C889E] mt-0.5">{props.description}</div>
+
+          {props.markedForDeletion && (
+            <div className="mt-2 text-xs text-rose-400">
+              Arquivo será removido ao salvar
+            </div>
+          )}
+
+          {hasNewFile && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-xs text-emerald-400 truncate">
+                Novo: {props.selectedFileName}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  props.onFileSelect(null)
+                  if (props.inputRef.current) props.inputRef.current.value = ""
+                }}
+                className="text-[#7C889E] hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {!hasNewFile && hasExistingFile && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-xs text-[#9AA6BC] truncate">
+                Atual: {props.existingFileName}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {(hasExistingFile || hasNewFile) && !props.markedForDeletion && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={props.onDelete}
+              className="h-9 w-9 p-0 text-[#7C889E] hover:text-rose-400 hover:bg-rose-400/10"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+
+          {props.markedForDeletion && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={props.onDelete}
+              className="h-9 px-3 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10"
+            >
+              Desfazer
+            </Button>
+          )}
+
+          <label className="cursor-pointer">
+            <div className="flex h-9 items-center gap-2 rounded-lg border border-[#141B29] bg-[#0B0F17] px-3 text-sm text-[#9AA6BC] hover:bg-[#0B1323] hover:text-white transition-colors">
+              <Upload className="h-4 w-4" />
+              <span>{hasNewFile || hasExistingFile ? "Substituir" : "Enviar"}</span>
+            </div>
+            <input
+              ref={props.inputRef}
+              type="file"
+              accept="application/pdf"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null
+                props.onFileSelect(file)
+              }}
+            />
+          </label>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function DealForm(props: {
   title: string
   subtitle: string
@@ -169,9 +273,22 @@ export function DealForm(props: {
   submitLabel: string
   cancelHref: string
   defaultValues?: DealFormDefaults
+  dealId?: string
+  existingDocuments?: {
+    propertyRegistryFileName: string | null
+    auctionNoticeFileName: string | null
+  }
   action: (formData: FormData) => void | Promise<void>
 }) {
   const [isPending, startTransition] = useTransition()
+  const formRef = useRef<HTMLFormElement>(null)
+  const propertyRegistryRef = useRef<HTMLInputElement>(null)
+  const auctionNoticeRef = useRef<HTMLInputElement>(null)
+
+  const [propertyRegistryFile, setPropertyRegistryFile] = useState<File | null>(null)
+  const [auctionNoticeFile, setAuctionNoticeFile] = useState<File | null>(null)
+  const [deletePropertyRegistry, setDeletePropertyRegistry] = useState(false)
+  const [deleteAuctionNotice, setDeleteAuctionNotice] = useState(false)
 
   const form = useForm<DealFormValues>({
     resolver: zodResolver(dealFormSchema),
@@ -208,14 +325,32 @@ export function DealForm(props: {
   const { handleSubmit, formState, control, watch, setValue } = form
   const { errors } = formState
   const financingEnabled = watch("financing.enabled")
+  const auctioneerFeePercent = watch("acquisition.auctioneerFeePercent") ?? ""
+  const isAuction = Number(String(auctioneerFeePercent).replace(",", ".")) > 0
 
   const onSubmit = (values: DealFormValues) => {
     const formData = new FormData()
     formData.set("payload", JSON.stringify(values))
+
+    // Arquivos
+    if (propertyRegistryFile) {
+      formData.set("propertyRegistryFile", propertyRegistryFile)
+    }
+    if (auctionNoticeFile) {
+      formData.set("auctionNoticeFile", auctionNoticeFile)
+    }
+
+    // Flags de deleção
+    formData.set("deletePropertyRegistry", deletePropertyRegistry ? "1" : "0")
+    formData.set("deleteAuctionNotice", deleteAuctionNotice ? "1" : "0")
+
     startTransition(async () => {
       await props.action(formData)
     })
   }
+
+  // Mostrar campo de edital se for leilão OU se já existe um arquivo de edital
+  const showAuctionNotice = isAuction || Boolean(props.existingDocuments?.auctionNoticeFileName)
 
   return (
     <>
@@ -239,7 +374,7 @@ export function DealForm(props: {
       </header>
 
       <div className="px-6 md:px-10 py-6 space-y-6">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <SectionCard title="Aquisição">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               <Controller
@@ -325,6 +460,74 @@ export function DealForm(props: {
             </div>
           </SectionCard>
 
+          <SectionCard title="Documentos">
+            <div className="space-y-4">
+              <DocumentUpload
+                label="Matrícula do imóvel"
+                description="PDF da matrícula atualizada do imóvel"
+                inputRef={propertyRegistryRef}
+                selectedFileName={propertyRegistryFile?.name ?? null}
+                existingFileName={props.existingDocuments?.propertyRegistryFileName ?? null}
+                onFileSelect={(file) => {
+                  setPropertyRegistryFile(file)
+                  if (file) setDeletePropertyRegistry(false)
+                }}
+                onDelete={() => {
+                  if (deletePropertyRegistry) {
+                    setDeletePropertyRegistry(false)
+                  } else {
+                    setPropertyRegistryFile(null)
+                    if (propertyRegistryRef.current) propertyRegistryRef.current.value = ""
+                    if (props.existingDocuments?.propertyRegistryFileName) {
+                      setDeletePropertyRegistry(true)
+                    }
+                  }
+                }}
+                markedForDeletion={deletePropertyRegistry}
+              />
+
+              {showAuctionNotice && (
+                <DocumentUpload
+                  label="Edital do leilão"
+                  description="PDF do edital do leilão judicial/extrajudicial"
+                  inputRef={auctionNoticeRef}
+                  selectedFileName={auctionNoticeFile?.name ?? null}
+                  existingFileName={props.existingDocuments?.auctionNoticeFileName ?? null}
+                  onFileSelect={(file) => {
+                    setAuctionNoticeFile(file)
+                    if (file) setDeleteAuctionNotice(false)
+                  }}
+                  onDelete={() => {
+                    if (deleteAuctionNotice) {
+                      setDeleteAuctionNotice(false)
+                    } else {
+                      setAuctionNoticeFile(null)
+                      if (auctionNoticeRef.current) auctionNoticeRef.current.value = ""
+                      if (props.existingDocuments?.auctionNoticeFileName) {
+                        setDeleteAuctionNotice(true)
+                      }
+                    }
+                  }}
+                  markedForDeletion={deleteAuctionNotice}
+                />
+              )}
+
+              {!showAuctionNotice && (
+                <div className="rounded-2xl border border-dashed border-[#141B29] bg-[#05060B]/50 p-4">
+                  <div className="flex items-center gap-3 text-[#7C889E]">
+                    <FileText className="h-5 w-5" />
+                    <div>
+                      <div className="text-sm">Edital do leilão</div>
+                      <div className="text-xs">
+                        Preencha a comissão do leiloeiro para habilitar este campo
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </SectionCard>
+
           <SectionCard title="Financiamento">
             <div className="space-y-4">
               <div className="flex items-center justify-between rounded-xl border border-[#141B29] bg-[#05060B] px-4 py-3">
@@ -382,7 +585,7 @@ export function DealForm(props: {
                   render={({ field }) => (
                     <div className="md:col-span-4">
                       <div className="flex items-center justify-between gap-3">
-                        <label className="text-sm text-[#9AA6BC]">Amortization</label>
+                        <label className="text-sm text-[#9AA6BC]">Amortização</label>
                         <span className="text-xs text-[#7C889E]">&nbsp;</span>
                       </div>
                       <select
@@ -562,5 +765,3 @@ export function DealForm(props: {
     </>
   )
 }
-
-

@@ -1,10 +1,10 @@
 generator client {
   provider = "prisma-client-js"
-  engineType = "binary"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -68,6 +68,13 @@ model Deal {
   riskLowROI           Boolean
   riskHighLeverage     Boolean
 
+  // Documentos
+  propertyRegistryFileName String?
+  propertyRegistryData     Bytes?
+
+  auctionNoticeFileName    String?
+  auctionNoticeData        Bytes?
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -109,4 +116,3 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
-

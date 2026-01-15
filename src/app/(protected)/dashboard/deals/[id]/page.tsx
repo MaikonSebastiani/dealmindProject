@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { ArrowLeft, ChevronRight, Pencil } from "lucide-react"
+import { ArrowLeft, ChevronRight, ExternalLink, FileText, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { prisma } from "@/lib/db/prisma"
@@ -103,6 +103,48 @@ function formatMonthsLabel(months: number) {
   return months === 1 ? "1 mês" : `${months} meses`
 }
 
+function DocumentCard(props: { 
+  label: string
+  fileName: string | null
+  href: string
+}) {
+  if (!props.fileName) {
+    return (
+      <div className="rounded-2xl border border-dashed border-[#141B29] bg-[#05060B]/50 p-4">
+        <div className="flex items-center gap-3 text-[#7C889E]">
+          <FileText className="h-5 w-5" />
+          <div>
+            <div className="text-sm">{props.label}</div>
+            <div className="text-xs">Nenhum arquivo anexado</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <a 
+      href={props.href} 
+      target="_blank" 
+      rel="noopener noreferrer"
+      className="rounded-2xl border border-[#141B29] bg-[#05060B] p-4 hover:bg-[#0B0F17] hover:border-[#2D5BFF] transition-colors block"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B0F17] border border-[#141B29]">
+            <FileText className="h-5 w-5 text-[#4F7DFF]" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm text-white">{props.label}</div>
+            <div className="text-xs text-[#7C889E] truncate">{props.fileName}</div>
+          </div>
+        </div>
+        <ExternalLink className="h-4 w-4 text-[#7C889E] shrink-0" />
+      </div>
+    </a>
+  )
+}
+
 export default async function DealDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user?.id) redirect("/?callbackUrl=/dashboard")
@@ -111,7 +153,7 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
 
   const deal = await prisma.deal.findFirst({
     where: { id, userId: session.user.id },
-  })
+  }) as any
 
   if (!deal) {
     notFound()
@@ -130,7 +172,7 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
           enabled: true,
           interestRateAnnual: deal.interestRateAnnual ?? 0,
           termMonths: deal.termMonths ?? 0,
-          amortizationType: (deal.amortizationType === "SAC" ? "SAC" : "PRICE") as any,
+          amortizationType: (deal.amortizationType === "SAC" ? "SAC" : "PRICE") as "SAC" | "PRICE",
         }
       : undefined,
     liabilities: {
@@ -180,6 +222,9 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
     if (!dealId) return
     await deleteDealAction(dealId)
   }
+
+  // Verificar se é leilão (tem comissão de leiloeiro)
+  const isAuction = (deal.auctioneerFeePercent ?? 0) > 0
 
   return (
     <>
@@ -236,6 +281,29 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
 
         <ViabilityCard status={viabilityStatus} detail={viabilityDetail} />
 
+        {/* Documentos */}
+        <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Documentos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <DocumentCard
+                label="Matrícula do imóvel"
+                fileName={deal.propertyRegistryFileName}
+                href={`/api/deals/${deal.id}/documents/property-registry`}
+              />
+              {(isAuction || deal.auctionNoticeFileName) && (
+                <DocumentCard
+                  label="Edital do leilão"
+                  fileName={deal.auctionNoticeFileName}
+                  href={`/api/deals/${deal.id}/documents/auction-notice`}
+                />
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
             <CardHeader className="pb-2">
@@ -243,7 +311,6 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
             </CardHeader>
             <CardContent className="space-y-5 text-sm">
               <div className="space-y-2">
-                {/* <SectionTitle>Mês 0</SectionTitle> */}
                 <Row label="Compra" value={formatBRL(projectInput.acquisition.purchasePrice)} />
                 <Row
                   label="Entrada"
@@ -413,5 +480,3 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
     </>
   )
 }
-
-
