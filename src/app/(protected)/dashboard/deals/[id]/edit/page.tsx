@@ -57,6 +57,9 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
       iptuDebt: money(deal.iptuDebt),
       condoDebt: money(deal.condoDebt),
     },
+    renovation: {
+      costs: money(deal.renovationCosts),
+    },
     operationAndExit: {
       resalePrice: money(deal.resalePrice),
       resaleDiscountPercent: percent(deal.resaleDiscountPercent),

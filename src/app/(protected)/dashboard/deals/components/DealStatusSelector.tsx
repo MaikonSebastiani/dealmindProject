@@ -9,6 +9,7 @@ import {
   validStatusTransitions,
   type DealStatus,
 } from "@/lib/domain/deals/dealStatus"
+import { RentValueModal } from "./RentValueModal"
 
 const iconMap = {
   search: Search,
@@ -74,6 +75,8 @@ export function DealStatusSelector({
   const [isOpen, setIsOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [status, setStatus] = useState(currentStatus as DealStatus)
+  const [showRentModal, setShowRentModal] = useState(false)
+  const [pendingStatus, setPendingStatus] = useState<DealStatus | null>(null)
 
   const config = dealStatusConfig[status] ?? dealStatusConfig["Em análise"]
   const colors = colorClasses[config.color]
@@ -83,69 +86,105 @@ export function DealStatusSelector({
 
   const handleStatusChange = (newStatus: DealStatus) => {
     setIsOpen(false)
+    
+    // Se o status for "Alugado", mostrar modal para informar o aluguel
+    if (newStatus === "Alugado") {
+      setPendingStatus(newStatus)
+      setShowRentModal(true)
+      return
+    }
+
+    // Para outros status, atualizar normalmente
+    executeStatusChange(newStatus)
+  }
+
+  const executeStatusChange = (newStatus: DealStatus, monthlyRent?: number) => {
     startTransition(async () => {
-      const result = await updateDealStatusAction(dealId, newStatus)
-      if (result.success) {
+      const result = await updateDealStatusAction(dealId, newStatus, monthlyRent)
+      if (result && result.success) {
         setStatus(newStatus)
       }
     })
   }
 
+  const handleRentConfirm = (monthlyRent: number) => {
+    if (pendingStatus) {
+      executeStatusChange(pendingStatus, monthlyRent)
+      setShowRentModal(false)
+      setPendingStatus(null)
+    }
+  }
+
+  const handleRentCancel = () => {
+    setShowRentModal(false)
+    setPendingStatus(null)
+  }
+
   return (
-    <div className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        disabled={isPending || availableTransitions.length === 0}
-        className={`
-          inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium
-          transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed
-          ${colors.bg} ${colors.text} ${colors.border}
-        `}
-      >
-        <Icon className="h-4 w-4" />
-        <span>{isPending ? "Atualizando..." : config.label}</span>
-        {availableTransitions.length > 0 && (
-          <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+    <>
+      <div className="relative">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          disabled={isPending || availableTransitions.length === 0}
+          className={`
+            inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium
+            transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed
+            ${colors.bg} ${colors.text} ${colors.border}
+          `}
+        >
+          <Icon className="h-4 w-4" />
+          <span>{isPending ? "Atualizando..." : config.label}</span>
+          {availableTransitions.length > 0 && (
+            <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+          )}
+        </button>
+
+        {isOpen && availableTransitions.length > 0 && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setIsOpen(false)}
+            />
+            <div className="absolute left-0 top-full mt-2 z-50 w-64 rounded-xl border border-[#141B29] bg-[#0B0F17] shadow-xl overflow-hidden">
+              <div className="px-3 py-2 border-b border-[#141B29]">
+                <div className="text-xs text-[#7C889E]">Alterar status para</div>
+              </div>
+              <div className="py-1">
+                {availableTransitions.map((nextStatus) => {
+                  const nextConfig = dealStatusConfig[nextStatus]
+                  const nextColors = colorClasses[nextConfig.color]
+                  const NextIcon = iconMap[nextConfig.icon]
+
+                  return (
+                    <button
+                      key={nextStatus}
+                      onClick={() => handleStatusChange(nextStatus)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[#0B1323] transition-colors"
+                    >
+                      <div className={`h-8 w-8 rounded-lg ${nextColors.bg} ${nextColors.border} border flex items-center justify-center`}>
+                        <NextIcon className={`h-4 w-4 ${nextColors.text}`} />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-sm text-white">{nextConfig.label}</div>
+                        <div className="text-xs text-[#7C889E]">{nextConfig.description}</div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </>
         )}
-      </button>
+      </div>
 
-      {isOpen && availableTransitions.length > 0 && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setIsOpen(false)}
-          />
-          <div className="absolute left-0 top-full mt-2 z-50 w-64 rounded-xl border border-[#141B29] bg-[#0B0F17] shadow-xl overflow-hidden">
-            <div className="px-3 py-2 border-b border-[#141B29]">
-              <div className="text-xs text-[#7C889E]">Alterar status para</div>
-            </div>
-            <div className="py-1">
-              {availableTransitions.map((nextStatus) => {
-                const nextConfig = dealStatusConfig[nextStatus]
-                const nextColors = colorClasses[nextConfig.color]
-                const NextIcon = iconMap[nextConfig.icon]
-
-                return (
-                  <button
-                    key={nextStatus}
-                    onClick={() => handleStatusChange(nextStatus)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[#0B1323] transition-colors"
-                  >
-                    <div className={`h-8 w-8 rounded-lg ${nextColors.bg} ${nextColors.border} border flex items-center justify-center`}>
-                      <NextIcon className={`h-4 w-4 ${nextColors.text}`} />
-                    </div>
-                    <div className="text-left">
-                      <div className="text-sm text-white">{nextConfig.label}</div>
-                      <div className="text-xs text-[#7C889E]">{nextConfig.description}</div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
+      {/* Modal para informar o valor do aluguel */}
+      <RentValueModal
+        isOpen={showRentModal}
+        onClose={handleRentCancel}
+        onConfirm={handleRentConfirm}
+        isPending={isPending}
+      />
+    </>
   )
 }
 

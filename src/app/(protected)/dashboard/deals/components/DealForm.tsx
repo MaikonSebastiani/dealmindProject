@@ -377,20 +377,17 @@ export function DealForm(props: {
         </div>
       </header>
 
-      <div className="px-6 md:px-10 py-6 space-y-6">
-        <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <SectionCard title="Tipo de Imóvel">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+      <div className="px-6 md:px-10 py-6 space-y-4">
+        <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Aquisição - inclui tipo de imóvel */}
+          <SectionCard title="Aquisição">
+            <div className="grid grid-cols-2 md:grid-cols-12 gap-3">
               <Controller
                 name="propertyType"
                 control={control}
                 render={({ field }) => (
-                  <div className="md:col-span-6">
-                    <div className="flex items-center justify-between gap-3">
-                      <label htmlFor="propertyType" className="text-sm text-[#9AA6BC]">
-                        Tipo
-                      </label>
-                    </div>
+                  <div className="col-span-2 md:col-span-3">
+                    <label htmlFor="propertyType" className="text-sm text-[#9AA6BC]">Tipo de imóvel</label>
                     <select
                       id="propertyType"
                       value={field.value}
@@ -399,22 +396,15 @@ export function DealForm(props: {
                       className="h-10 w-full rounded-md bg-[#05060B] border border-[#141B29] px-3 text-sm text-white outline-none focus:border-[#2D5BFF]"
                     >
                       {propertyTypes.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
+                        <option key={type} value={type}>{type}</option>
                       ))}
                     </select>
-                    {errors.propertyType?.message ? (
+                    {errors.propertyType?.message && (
                       <div className="mt-1 text-xs text-rose-400">{String(errors.propertyType.message)}</div>
-                    ) : null}
+                    )}
                   </div>
                 )}
               />
-            </div>
-          </SectionCard>
-
-          <SectionCard title="Aquisição">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               <Controller
                 name="acquisition.purchasePrice"
                 control={control}
@@ -427,7 +417,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.acquisition?.purchasePrice?.message as string | undefined}
-                    className="md:col-span-6"
+                    className="col-span-2 md:col-span-5"
                   />
                 )}
               />
@@ -443,7 +433,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.acquisition?.downPaymentPercent?.message as string | undefined}
-                    className="md:col-span-3"
+                    className="md:col-span-2"
                   />
                 )}
               />
@@ -452,14 +442,14 @@ export function DealForm(props: {
                 control={control}
                 render={({ field }) => (
                   <PercentField
-                    label="Comissão do leiloeiro (%)"
+                    label="Leiloeiro (%)"
                     name="auctioneerFeePercent"
                     optionalHint="opcional"
                     value={field.value ?? ""}
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.acquisition?.auctioneerFeePercent?.message as string | undefined}
-                    className="md:col-span-3"
+                    className="md:col-span-2"
                   />
                 )}
               />
@@ -475,7 +465,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.acquisition?.itbiPercent?.message as string | undefined}
-                    className="md:col-span-3"
+                    className="md:col-span-2"
                   />
                 )}
               />
@@ -491,163 +481,155 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.acquisition?.registryCost?.message as string | undefined}
-                    className="md:col-span-3"
+                    className="md:col-span-4"
                   />
                 )}
               />
             </div>
           </SectionCard>
 
-          <SectionCard title="Documentos">
-            <div className="space-y-4">
-              <DocumentUpload
-                label="Matrícula do imóvel"
-                description="PDF da matrícula atualizada do imóvel"
-                inputRef={propertyRegistryRef}
-                selectedFileName={propertyRegistryFile?.name ?? null}
-                existingFileName={props.existingDocuments?.propertyRegistryFileName ?? null}
-                onFileSelect={(file) => {
-                  setPropertyRegistryFile(file)
-                  if (file) setDeletePropertyRegistry(false)
-                }}
-                onDelete={() => {
-                  if (deletePropertyRegistry) {
-                    setDeletePropertyRegistry(false)
-                  } else {
-                    setPropertyRegistryFile(null)
-                    if (propertyRegistryRef.current) propertyRegistryRef.current.value = ""
-                    if (props.existingDocuments?.propertyRegistryFileName) {
-                      setDeletePropertyRegistry(true)
-                    }
-                  }
-                }}
-                markedForDeletion={deletePropertyRegistry}
-              />
-
-              {showAuctionNotice && (
+          {/* Documentos e Financiamento lado a lado */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <SectionCard title="Documentos">
+              <div className="space-y-3">
                 <DocumentUpload
-                  label="Edital do leilão"
-                  description="PDF do edital do leilão judicial/extrajudicial"
-                  inputRef={auctionNoticeRef}
-                  selectedFileName={auctionNoticeFile?.name ?? null}
-                  existingFileName={props.existingDocuments?.auctionNoticeFileName ?? null}
+                  label="Matrícula do imóvel"
+                  description="PDF da matrícula atualizada"
+                  inputRef={propertyRegistryRef}
+                  selectedFileName={propertyRegistryFile?.name ?? null}
+                  existingFileName={props.existingDocuments?.propertyRegistryFileName ?? null}
                   onFileSelect={(file) => {
-                    setAuctionNoticeFile(file)
-                    if (file) setDeleteAuctionNotice(false)
+                    setPropertyRegistryFile(file)
+                    if (file) setDeletePropertyRegistry(false)
                   }}
                   onDelete={() => {
-                    if (deleteAuctionNotice) {
-                      setDeleteAuctionNotice(false)
+                    if (deletePropertyRegistry) {
+                      setDeletePropertyRegistry(false)
                     } else {
-                      setAuctionNoticeFile(null)
-                      if (auctionNoticeRef.current) auctionNoticeRef.current.value = ""
-                      if (props.existingDocuments?.auctionNoticeFileName) {
-                        setDeleteAuctionNotice(true)
+                      setPropertyRegistryFile(null)
+                      if (propertyRegistryRef.current) propertyRegistryRef.current.value = ""
+                      if (props.existingDocuments?.propertyRegistryFileName) {
+                        setDeletePropertyRegistry(true)
                       }
                     }
                   }}
-                  markedForDeletion={deleteAuctionNotice}
+                  markedForDeletion={deletePropertyRegistry}
                 />
-              )}
 
-              {!showAuctionNotice && (
-                <div className="rounded-2xl border border-dashed border-[#141B29] bg-[#05060B]/50 p-4">
-                  <div className="flex items-center gap-3 text-[#7C889E]">
-                    <FileText className="h-5 w-5" />
-                    <div>
-                      <div className="text-sm">Edital do leilão</div>
-                      <div className="text-xs">
-                        Preencha a comissão do leiloeiro para habilitar este campo
-                      </div>
+                {showAuctionNotice ? (
+                  <DocumentUpload
+                    label="Edital do leilão"
+                    description="PDF do edital do leilão"
+                    inputRef={auctionNoticeRef}
+                    selectedFileName={auctionNoticeFile?.name ?? null}
+                    existingFileName={props.existingDocuments?.auctionNoticeFileName ?? null}
+                    onFileSelect={(file) => {
+                      setAuctionNoticeFile(file)
+                      if (file) setDeleteAuctionNotice(false)
+                    }}
+                    onDelete={() => {
+                      if (deleteAuctionNotice) {
+                        setDeleteAuctionNotice(false)
+                      } else {
+                        setAuctionNoticeFile(null)
+                        if (auctionNoticeRef.current) auctionNoticeRef.current.value = ""
+                        if (props.existingDocuments?.auctionNoticeFileName) {
+                          setDeleteAuctionNotice(true)
+                        }
+                      }
+                    }}
+                    markedForDeletion={deleteAuctionNotice}
+                  />
+                ) : (
+                  <div className="rounded-xl border border-dashed border-[#141B29] bg-[#05060B]/50 p-3">
+                    <div className="flex items-center gap-3 text-[#7C889E]">
+                      <FileText className="h-4 w-4" />
+                      <div className="text-xs">Preencha comissão do leiloeiro para habilitar edital</div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </SectionCard>
-
-          <SectionCard title="Financiamento">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-xl border border-[#141B29] bg-[#05060B] px-4 py-3">
-                <div>
-                  <div className="text-sm font-medium text-white">Habilitar financiamento</div>
-                  <div className="text-xs text-[#7C889E]">Taxa, prazo e sistema de amortização</div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={financingEnabled}
-                  onChange={(e) => setValue("financing.enabled", e.target.checked, { shouldValidate: true })}
-                  className="h-4 w-4 accent-[#4F7DFF]"
-                />
+                )}
               </div>
+            </SectionCard>
 
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                <Controller
-                  name="financing.interestRateAnnual"
-                  control={control}
-                  render={({ field }) => (
-                    <PercentField
-                      label="Taxa de juros Anual"
-                      name="interestRateAnnual"
-                      required={financingEnabled}
-                      disabled={!financingEnabled}
-                      value={field.value}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      error={errors.financing?.interestRateAnnual?.message as string | undefined}
-                      className="md:col-span-4"
-                    />
-                  )}
-                />
-                <Controller
-                  name="financing.termMonths"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      label="Prazo (meses)"
-                      name="termMonths"
-                      required={financingEnabled}
-                      disabled={!financingEnabled}
-                      value={field.value}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      error={errors.financing?.termMonths?.message as string | undefined}
-                      placeholder="360"
-                      className="md:col-span-4"
-                    />
-                  )}
-                />
-                <Controller
-                  name="financing.amortizationType"
-                  control={control}
-                  render={({ field }) => (
-                    <div className="md:col-span-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <label className="text-sm text-[#9AA6BC]">Amortização</label>
-                        <span className="text-xs text-[#7C889E]">&nbsp;</span>
-                      </div>
-                      <select
+            <SectionCard title="Financiamento">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-xl border border-[#141B29] bg-[#05060B] px-3 py-2">
+                  <div>
+                    <div className="text-sm font-medium text-white">Habilitar financiamento</div>
+                    <div className="text-xs text-[#7C889E]">Taxa, prazo e amortização</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={financingEnabled}
+                    onChange={(e) => setValue("financing.enabled", e.target.checked, { shouldValidate: true })}
+                    className="h-4 w-4 accent-[#4F7DFF]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <Controller
+                    name="financing.interestRateAnnual"
+                    control={control}
+                    render={({ field }) => (
+                      <PercentField
+                        label="Juros a.a."
+                        name="interestRateAnnual"
+                        required={financingEnabled}
                         disabled={!financingEnabled}
                         value={field.value}
                         onChange={field.onChange}
                         onBlur={field.onBlur}
-                        className="h-10 w-full rounded-md bg-[#05060B] border border-[#141B29] px-3 text-sm text-white outline-none focus:border-[#2D5BFF] disabled:opacity-60"
-                      >
-                        <option value="PRICE">PRICE</option>
-                        <option value="SAC">SAC</option>
-                      </select>
-                      {errors.financing?.amortizationType?.message ? (
-                        <div className="mt-1 text-xs text-rose-400">{String(errors.financing.amortizationType.message)}</div>
-                      ) : null}
-                    </div>
-                  )}
-                />
+                        error={errors.financing?.interestRateAnnual?.message as string | undefined}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="financing.termMonths"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        label="Prazo (meses)"
+                        name="termMonths"
+                        required={financingEnabled}
+                        disabled={!financingEnabled}
+                        value={field.value}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        error={errors.financing?.termMonths?.message as string | undefined}
+                        placeholder="360"
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="financing.amortizationType"
+                    control={control}
+                    render={({ field }) => (
+                      <div>
+                        <label className="text-sm text-[#9AA6BC]">Amortização</label>
+                        <select
+                          disabled={!financingEnabled}
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          className="h-10 w-full rounded-md bg-[#05060B] border border-[#141B29] px-3 text-sm text-white outline-none focus:border-[#2D5BFF] disabled:opacity-60"
+                        >
+                          <option value="PRICE">PRICE</option>
+                          <option value="SAC">SAC</option>
+                        </select>
+                        {errors.financing?.amortizationType?.message && (
+                          <div className="mt-1 text-xs text-rose-400">{String(errors.financing.amortizationType.message)}</div>
+                        )}
+                      </div>
+                    )}
+                  />
+                </div>
               </div>
-            </div>
-          </SectionCard>
+            </SectionCard>
+          </div>
 
-          <SectionCard title="Dívidas herdadas">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          {/* Dívidas e Reforma */}
+          <SectionCard title="Custos adicionais">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <Controller
                 name="liabilities.iptuDebt"
                 control={control}
@@ -660,7 +642,6 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.liabilities?.iptuDebt?.message as string | undefined}
-                    className="md:col-span-6"
                   />
                 )}
               />
@@ -676,15 +657,9 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.liabilities?.condoDebt?.message as string | undefined}
-                    className="md:col-span-6"
                   />
                 )}
               />
-            </div>
-          </SectionCard>
-
-          <SectionCard title="Reforma">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               <Controller
                 name="renovation.costs"
                 control={control}
@@ -697,15 +672,15 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.renovation?.costs?.message as string | undefined}
-                    className="md:col-span-6"
                   />
                 )}
               />
             </div>
           </SectionCard>
 
+          {/* Operação e saída */}
           <SectionCard title="Operação e saída">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
               <Controller
                 name="operationAndExit.resalePrice"
                 control={control}
@@ -718,7 +693,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.operationAndExit?.resalePrice?.message as string | undefined}
-                    className="md:col-span-6"
+                    className="col-span-2 md:col-span-2"
                   />
                 )}
               />
@@ -727,14 +702,13 @@ export function DealForm(props: {
                 control={control}
                 render={({ field }) => (
                   <PercentField
-                    label="Desconto de venda (%)"
+                    label="Desconto (%)"
                     name="resaleDiscountPercent"
                     required
                     value={field.value}
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.operationAndExit?.resaleDiscountPercent?.message as string | undefined}
-                    className="md:col-span-3"
                   />
                 )}
               />
@@ -743,14 +717,29 @@ export function DealForm(props: {
                 control={control}
                 render={({ field }) => (
                   <PercentField
-                    label="Comissão do corretor (%)"
+                    label="Corretor (%)"
                     name="brokerFeePercent"
                     required
                     value={field.value}
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.operationAndExit?.brokerFeePercent?.message as string | undefined}
-                    className="md:col-span-3"
+                  />
+                )}
+              />
+              <Controller
+                name="operationAndExit.expectedSaleMonths"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    label="Prazo (meses)"
+                    name="expectedSaleMonths"
+                    required
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={errors.operationAndExit?.expectedSaleMonths?.message as string | undefined}
+                    placeholder="12"
                   />
                 )}
               />
@@ -766,7 +755,6 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.operationAndExit?.monthlyCondoFee?.message as string | undefined}
-                    className="md:col-span-6"
                   />
                 )}
               />
@@ -782,24 +770,6 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.operationAndExit?.monthlyIptu?.message as string | undefined}
-                    className="md:col-span-3"
-                  />
-                )}
-              />
-              <Controller
-                name="operationAndExit.expectedSaleMonths"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    label="Venda esperada (meses)"
-                    name="expectedSaleMonths"
-                    required
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    error={errors.operationAndExit?.expectedSaleMonths?.message as string | undefined}
-                    placeholder="12"
-                    className="md:col-span-3"
                   />
                 )}
               />

@@ -151,39 +151,39 @@ export async function updateDealAction(dealId: string, formData: FormData) {
     where: { id: dealId, userId: session.user.id },
     data: {
       propertyType,
-      purchasePrice: input.acquisition.purchasePrice,
-      acquisitionCosts: viability.acquisitionCosts,
+    purchasePrice: input.acquisition.purchasePrice,
+    acquisitionCosts: viability.acquisitionCosts,
 
-      downPaymentPercent: input.acquisition.downPaymentPercent,
-      auctioneerFeePercent: input.acquisition.auctioneerFeePercent ?? null,
-      itbiPercent: input.acquisition.itbiPercent,
-      registryCost: input.acquisition.registryCost,
+    downPaymentPercent: input.acquisition.downPaymentPercent,
+    auctioneerFeePercent: input.acquisition.auctioneerFeePercent ?? null,
+    itbiPercent: input.acquisition.itbiPercent,
+    registryCost: input.acquisition.registryCost,
 
-      financingEnabled: Boolean(input.financing?.enabled),
-      interestRateAnnual: input.financing?.interestRateAnnual ?? null,
-      termMonths: input.financing?.termMonths ?? null,
-      amortizationType: input.financing?.amortizationType ?? null,
+    financingEnabled: Boolean(input.financing?.enabled),
+    interestRateAnnual: input.financing?.interestRateAnnual ?? null,
+    termMonths: input.financing?.termMonths ?? null,
+    amortizationType: input.financing?.amortizationType ?? null,
 
-      iptuDebt: input.liabilities.iptuDebt,
-      condoDebt: input.liabilities.condoDebt,
+    iptuDebt: input.liabilities.iptuDebt,
+    condoDebt: input.liabilities.condoDebt,
 
       renovationCosts: input.renovation?.costs ?? 0,
 
-      resalePrice: input.operationAndExit.resalePrice,
-      resaleDiscountPercent: input.operationAndExit.resaleDiscountPercent,
-      brokerFeePercent: input.operationAndExit.brokerFeePercent,
-      monthlyCondoFee: input.operationAndExit.monthlyCondoFee,
-      monthlyIptu: input.operationAndExit.monthlyIptu,
-      expectedSaleMonths: input.operationAndExit.expectedSaleMonths,
+    resalePrice: input.operationAndExit.resalePrice,
+    resaleDiscountPercent: input.operationAndExit.resaleDiscountPercent,
+    brokerFeePercent: input.operationAndExit.brokerFeePercent,
+    monthlyCondoFee: input.operationAndExit.monthlyCondoFee,
+    monthlyIptu: input.operationAndExit.monthlyIptu,
+    expectedSaleMonths: input.operationAndExit.expectedSaleMonths,
 
-      monthlyCashFlow: 0,
-      annualCashFlow: 0,
+    monthlyCashFlow: 0,
+    annualCashFlow: 0,
       roi: viability.roiAfterTax,
-      capRate: 0,
-      paybackYears: 0,
-      riskNegativeCashFlow: viability.risk.negativeProfit,
-      riskLowROI: viability.risk.lowROI,
-      riskHighLeverage: viability.risk.highLeverage,
+    capRate: 0,
+    paybackYears: 0,
+    riskNegativeCashFlow: viability.risk.negativeProfit,
+    riskLowROI: viability.risk.lowROI,
+    riskHighLeverage: viability.risk.highLeverage,
 
       ...documentData,
     },
@@ -212,7 +212,11 @@ export async function deleteDealAction(dealId: string) {
   redirect("/dashboard/deals")
 }
 
-export async function updateDealStatusAction(dealId: string, newStatus: string) {
+export async function updateDealStatusAction(
+  dealId: string, 
+  newStatus: string,
+  monthlyRent?: number
+) {
   const session = await auth()
   if (!session?.user?.id) {
     return { error: "Não autorizado" }
@@ -233,6 +237,11 @@ export async function updateDealStatusAction(dealId: string, newStatus: string) 
     return { error: "Status inválido" }
   }
 
+  // Se o status for "Alugado", o aluguel mensal é obrigatório
+  if (newStatus === "Alugado" && (monthlyRent === undefined || monthlyRent <= 0)) {
+    return { error: "Informe o valor do aluguel mensal" }
+  }
+
   // Buscar o status atual do deal
   const currentDeal = await prisma.deal.findFirst({
     where: { id: dealId, userId: session.user.id },
@@ -250,11 +259,22 @@ export async function updateDealStatusAction(dealId: string, newStatus: string) 
     return { success: true }
   }
 
+  // Preparar dados adicionais para atualização
+  const additionalData: Record<string, unknown> = {}
+  
+  // Se for "Alugado", salvar o aluguel mensal
+  if (newStatus === "Alugado" && monthlyRent) {
+    additionalData.monthlyRent = monthlyRent
+  }
+
   // Atualizar o status e registrar no histórico
   await prisma.$transaction([
     prisma.deal.update({
       where: { id: dealId },
-      data: { status: newStatus },
+      data: { 
+        status: newStatus,
+        ...additionalData,
+      },
     }),
     prisma.dealStatusChange.create({
       data: {
