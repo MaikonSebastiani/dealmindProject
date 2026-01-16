@@ -5,6 +5,16 @@ import { DealForm } from "../../components/DealForm"
 import { updateDealAction } from "../../actions"
 import { formatNumberToPtBRMoney } from "@/lib/money"
 
+const validPropertyTypes = ["Apartamento", "Casa", "Comercial", "Lote"] as const
+type PropertyType = (typeof validPropertyTypes)[number]
+
+function getPropertyType(value: string | null | undefined): PropertyType {
+  if (value && validPropertyTypes.includes(value as PropertyType)) {
+    return value as PropertyType
+  }
+  return "Apartamento"
+}
+
 export default async function EditDealPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user?.id) {
@@ -28,6 +38,35 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
   const percentOptional = (v: number | null) => (typeof v === "number" ? String(v) : "")
   const int = (v: number | null, fallback: string) => (typeof v === "number" ? String(v) : fallback)
 
+  const defaultValues = {
+    propertyType: getPropertyType(deal.propertyType),
+    acquisition: {
+      purchasePrice: money(deal.purchasePrice),
+      downPaymentPercent: percent(deal.downPaymentPercent),
+      auctioneerFeePercent: percentOptional(deal.auctioneerFeePercent),
+      itbiPercent: percent(deal.itbiPercent),
+      registryCost: money(deal.registryCost),
+    },
+    financing: {
+      enabled: deal.financingEnabled,
+      interestRateAnnual: percent(deal.interestRateAnnual),
+      termMonths: int(deal.termMonths, "360"),
+      amortizationType: (deal.amortizationType === "SAC" ? "SAC" : "PRICE") as "SAC" | "PRICE",
+    },
+    liabilities: {
+      iptuDebt: money(deal.iptuDebt),
+      condoDebt: money(deal.condoDebt),
+    },
+    operationAndExit: {
+      resalePrice: money(deal.resalePrice),
+      resaleDiscountPercent: percent(deal.resaleDiscountPercent),
+      brokerFeePercent: percent(deal.brokerFeePercent),
+      monthlyCondoFee: money(deal.monthlyCondoFee),
+      monthlyIptu: money(deal.monthlyIptu),
+      expectedSaleMonths: int(deal.expectedSaleMonths, "12"),
+    },
+  }
+
   return (
     <DealForm
       title="Editar Deal"
@@ -43,33 +82,7 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
         propertyRegistryFileName: deal.propertyRegistryFileName,
         auctionNoticeFileName: deal.auctionNoticeFileName,
       }}
-      defaultValues={{
-        acquisition: {
-          purchasePrice: money(deal.purchasePrice),
-          downPaymentPercent: percent(deal.downPaymentPercent),
-          auctioneerFeePercent: percentOptional(deal.auctioneerFeePercent),
-          itbiPercent: percent(deal.itbiPercent),
-          registryCost: money(deal.registryCost),
-        },
-        financing: {
-          enabled: deal.financingEnabled,
-          interestRateAnnual: percent(deal.interestRateAnnual),
-          termMonths: int(deal.termMonths, "360"),
-          amortizationType: (deal.amortizationType === "SAC" ? "SAC" : "PRICE") as "SAC" | "PRICE",
-        },
-        liabilities: {
-          iptuDebt: money(deal.iptuDebt),
-          condoDebt: money(deal.condoDebt),
-        },
-        operationAndExit: {
-          resalePrice: money(deal.resalePrice),
-          resaleDiscountPercent: percent(deal.resaleDiscountPercent),
-          brokerFeePercent: percent(deal.brokerFeePercent),
-          monthlyCondoFee: money(deal.monthlyCondoFee),
-          monthlyIptu: money(deal.monthlyIptu),
-          expectedSaleMonths: int(deal.expectedSaleMonths, "12"),
-        },
-      }}
+      defaultValues={defaultValues as any}
       action={action}
     />
   )

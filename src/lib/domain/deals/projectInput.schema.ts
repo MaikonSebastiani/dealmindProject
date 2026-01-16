@@ -37,7 +37,10 @@ const intPositive = z
   .transform((v) => Number(v))
   .refine((v) => Number.isInteger(v) && v > 0, "Informe um número inteiro maior que zero")
 
+export const propertyTypes = ["Apartamento", "Casa", "Comercial", "Lote"] as const
+
 export const projectInputFormSchema = z.object({
+  propertyType: z.enum(propertyTypes),
   acquisition: z.object({
     purchasePrice: moneyRequiredPositive,
     downPaymentPercent: percent,

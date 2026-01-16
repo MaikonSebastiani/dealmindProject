@@ -7,16 +7,17 @@ import { auth } from "@/auth"
 import { calculateProjectViability } from "@/lib/domain/finance/calculateProjectViability"
 import type { ProjectInput } from "@/lib/domain/deals/projectInput"
 
-type RiskLevel = "baixo" | "médio" | "alto"
+type ViabilityStatus = "Viável" | "Margem apertada" | "Inviável"
 
 type DealListItem = {
   id: string
   name: string
+  propertyType: string
   purchasePrice: number
   profit: number
   roi: number
   capitalNeeded: number
-  risk: RiskLevel
+  viability: ViabilityStatus
 }
 
 function formatBRL(value: number) {
@@ -27,17 +28,17 @@ function formatPercent(value: number) {
   return `${(value * 100).toFixed(1)}%`
 }
 
-function RiskPill({ risk }: { risk: RiskLevel }) {
+function ViabilityPill({ viability }: { viability: ViabilityStatus }) {
   const cls =
-    risk === "baixo"
+    viability === "Viável"
       ? "bg-[#06221B] text-[#32D583] border-[#0B3A2C]"
-      : risk === "médio"
+      : viability === "Margem apertada"
         ? "bg-[#0B1323] text-[#F59E0B] border-[#141B29]"
         : "bg-[#2A0B12] text-[#FF5A6A] border-[#3A0B16]"
 
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs ${cls}`}>
-      {risk}
+      {viability}
     </span>
   )
 }
@@ -49,6 +50,13 @@ function DealRow({ deal }: { deal: DealListItem }) {
       <td className="p-0">
         <Link href={href} className="block py-4 text-sm text-white hover:underline">
           {deal.name}
+        </Link>
+      </td>
+      <td className="p-0">
+        <Link href={href} className="block py-4">
+          <span className="inline-flex items-center rounded-lg border border-[#141B29] bg-[#0B1323] px-2 py-1 text-xs text-[#C7D0DF]">
+            {deal.propertyType}
+          </span>
         </Link>
       </td>
       <td className="p-0 text-right">
@@ -75,7 +83,7 @@ function DealRow({ deal }: { deal: DealListItem }) {
       </td>
       <td className="p-0 text-right">
         <Link href={href} className="block py-4">
-          <RiskPill risk={deal.risk} />
+          <ViabilityPill viability={deal.viability} />
         </Link>
       </td>
       <td className="p-0 text-right">
@@ -169,21 +177,23 @@ export default async function DealsPage() {
 
     const viability = calculateProjectViability(input)
 
-    const risk: RiskLevel =
-      d.riskNegativeCashFlow || d.riskLowROI
-        ? "alto"
-        : d.riskHighLeverage
-          ? "médio"
-          : "baixo"
+    // Determinar viabilidade baseada nos mesmos critérios da página de detalhes
+    const viabilityStatus: ViabilityStatus =
+      viability.profit <= 0
+        ? "Inviável"
+        : viability.roiTotal < 0.1
+          ? "Margem apertada"
+          : "Viável"
 
     return {
       id: d.id,
       name: d.propertyName ?? "Sem nome",
+      propertyType: d.propertyType ?? "—",
       purchasePrice: d.purchasePrice,
       profit: viability.profitAfterTax,
       roi: viability.roiAfterTax,
       capitalNeeded: viability.initialInvestment,
-      risk,
+      viability: viabilityStatus,
     }
   })
 
@@ -248,11 +258,12 @@ export default async function DealsPage() {
                   <thead className="text-[11px] uppercase tracking-wider text-[#7C889E]">
                     <tr className="border-b border-[#141B29]">
                       <th className="py-3 text-left">Imóvel</th>
+                      <th className="py-3 text-left">Tipo</th>
                       <th className="py-3 text-right">Compra</th>
                       <th className="py-3 text-right">Lucro Líquido</th>
                       <th className="py-3 text-right">ROI</th>
                       <th className="py-3 text-right">Capital Necessário</th>
-                      <th className="py-3 text-right">Risco</th>
+                      <th className="py-3 text-right">Viabilidade</th>
                       <th className="py-3 w-12" />
                     </tr>
                   </thead>

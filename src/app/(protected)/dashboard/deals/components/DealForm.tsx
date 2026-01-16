@@ -8,9 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
-import { dealFormSchema, DealFormValues } from "./dealFormSchema"
+import { dealFormSchema, DealFormValues, propertyTypes, PropertyType } from "./dealFormSchema"
 
-type DealFormDefaults = Partial<DealFormValues>
+type DealFormDefaults = Partial<DealFormValues> & { propertyType?: PropertyType }
 
 function sanitizeToDigits(value: string) {
   return value.replace(/\D/g, "")
@@ -294,6 +294,7 @@ export function DealForm(props: {
     resolver: zodResolver(dealFormSchema),
     mode: "onBlur",
     defaultValues: props.defaultValues ?? {
+      propertyType: "Apartamento",
       acquisition: {
         purchasePrice: "",
         downPaymentPercent: "20",
@@ -375,6 +376,40 @@ export function DealForm(props: {
 
       <div className="px-6 md:px-10 py-6 space-y-6">
         <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <SectionCard title="Tipo de Imóvel">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              <Controller
+                name="propertyType"
+                control={control}
+                render={({ field }) => (
+                  <div className="md:col-span-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <label htmlFor="propertyType" className="text-sm text-[#9AA6BC]">
+                        Tipo
+                      </label>
+                    </div>
+                    <select
+                      id="propertyType"
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      className="h-10 w-full rounded-md bg-[#05060B] border border-[#141B29] px-3 text-sm text-white outline-none focus:border-[#2D5BFF]"
+                    >
+                      {propertyTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.propertyType?.message ? (
+                      <div className="mt-1 text-xs text-rose-400">{String(errors.propertyType.message)}</div>
+                    ) : null}
+                  </div>
+                )}
+              />
+            </div>
+          </SectionCard>
+
           <SectionCard title="Aquisição">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               <Controller

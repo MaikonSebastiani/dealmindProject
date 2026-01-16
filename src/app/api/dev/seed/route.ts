@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client"
+import { prisma } from "@/lib/db/prisma"
 import { hash } from "bcryptjs"
-
-const prisma = new PrismaClient()
 
 // Dados de exemplo de imóveis
 const sampleDeals = [
@@ -77,7 +75,7 @@ const sampleDeals = [
   },
   {
     propertyName: "Kitnet Centro - RJ",
-    propertyType: "Apartamento",
+    propertyType: "Kitnet",
     address: "Rua do Ouvidor, 80 - Centro, Rio de Janeiro/RJ",
     status: "Em análise",
     purchasePrice: 180000,
@@ -112,7 +110,7 @@ const sampleDeals = [
   },
   {
     propertyName: "Sobrado Leilão Judicial - Curitiba",
-    propertyType: "Casa",
+    propertyType: "Sobrado",
     address: "Rua XV de Novembro, 1500 - Centro, Curitiba/PR",
     status: "Em análise",
     purchasePrice: 420000,
@@ -147,7 +145,7 @@ const sampleDeals = [
   },
   {
     propertyName: "Cobertura Barra - RJ",
-    propertyType: "Apartamento",
+    propertyType: "Cobertura",
     address: "Av. Lúcio Costa, 3200 - Barra da Tijuca, Rio de Janeiro/RJ",
     status: "Em análise",
     purchasePrice: 2500000,
@@ -217,7 +215,7 @@ const sampleDeals = [
   },
   {
     propertyName: "Studio Pinheiros - SP",
-    propertyType: "Apartamento",
+    propertyType: "Studio",
     address: "Rua dos Pinheiros, 900 - Pinheiros, São Paulo/SP",
     status: "Em análise",
     purchasePrice: 320000,
@@ -252,7 +250,7 @@ const sampleDeals = [
   },
   {
     propertyName: "Terreno Leilão - Campinas",
-    propertyType: "Lote",
+    propertyType: "Terreno",
     address: "Rod. D. Pedro I, km 132 - Campinas/SP",
     status: "Em análise",
     purchasePrice: 150000,
@@ -287,7 +285,7 @@ const sampleDeals = [
   },
   {
     propertyName: "Flat Itaim - SP",
-    propertyType: "Apartamento",
+    propertyType: "Flat",
     address: "Rua João Cachoeira, 350 - Itaim Bibi, São Paulo/SP",
     status: "Em análise",
     purchasePrice: 480000,
@@ -427,62 +425,61 @@ const sampleDeals = [
   },
 ]
 
-async function main() {
-  console.log("🌱 Iniciando seed...")
-
-  // Usuário de teste para desenvolvimento
-  const testEmail = "maikon.sebastiani@gmail.com"
-  const testPassword = "12345678"
-
-  let user = await prisma.user.findUnique({
-    where: { email: testEmail },
-  })
-
-  if (!user) {
-    const hashedPassword = await hash(testPassword, 12)
-    user = await prisma.user.create({
-      data: {
-        email: testEmail,
-        password: hashedPassword,
-        name: "Dev User",
-      },
-    })
-    console.log(`✅ Usuário de teste criado: ${user.email}`)
-  } else {
-    console.log(`✅ Usuário de teste já existe: ${testEmail}`)
+export async function GET() {
+  // Apenas em desenvolvimento
+  if (process.env.NODE_ENV === "production") {
+    return Response.json({ error: "Not available in production" }, { status: 403 })
   }
 
-  // Criar deals de exemplo
-  console.log("📦 Criando deals de exemplo...")
-  
-  for (const dealData of sampleDeals) {
-    await prisma.deal.create({
-      data: {
-        userId: user.id,
-        ...dealData,
-      },
-    })
-  }
-  
-  const totalDeals = await prisma.deal.count({
-    where: { userId: user.id },
-  })
-  
-  console.log(`✅ ${sampleDeals.length} novos deals criados!`)
-  console.log(`📊 Total de deals do usuário: ${totalDeals}`)
+  try {
+    // Usuário de teste
+    const testEmail = "dev@dealmind.com"
+    const testPassword = "12345678"
 
-  console.log("")
-  console.log(`📧 Email: ${testEmail}`)
-  console.log(`🔑 Senha: ${testPassword}`)
-  console.log("")
-  console.log("🌱 Seed concluído!")
+    let user = await prisma.user.findUnique({
+      where: { email: testEmail },
+    })
+
+    if (!user) {
+      const hashedPassword = await hash(testPassword, 12)
+      user = await prisma.user.create({
+        data: {
+          email: testEmail,
+          password: hashedPassword,
+          name: "Dev User",
+        },
+      })
+    }
+
+    // Verificar se já existem deals
+    const existingDeals = await prisma.deal.count({
+      where: { userId: user.id },
+    })
+
+    if (existingDeals > 0) {
+      return Response.json({
+        message: `Já existem ${existingDeals} deals no banco`,
+        user: { email: testEmail, password: testPassword },
+      })
+    }
+
+    // Criar deals de exemplo
+    for (const dealData of sampleDeals) {
+      await prisma.deal.create({
+        data: {
+          userId: user.id,
+          ...dealData,
+        },
+      })
+    }
+
+    return Response.json({
+      message: `${sampleDeals.length} deals criados com sucesso!`,
+      user: { email: testEmail, password: testPassword },
+    })
+  } catch (error) {
+    console.error("Seed error:", error)
+    return Response.json({ error: String(error) }, { status: 500 })
+  }
 }
 
-main()
-  .catch((e) => {
-    console.error("❌ Erro no seed:", e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })

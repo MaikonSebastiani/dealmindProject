@@ -47,8 +47,15 @@ const intPositive = z
     return Number.isInteger(n) && n > 0
   }, "Informe um número inteiro maior que zero")
 
+export const propertyTypes = ["Apartamento", "Casa", "Comercial", "Lote"] as const
+export type PropertyType = (typeof propertyTypes)[number]
+
 export const dealFormSchema = z
   .object({
+    propertyType: z.enum(propertyTypes, {
+      required_error: "Selecione o tipo de imóvel",
+      invalid_type_error: "Tipo de imóvel inválido",
+    }),
     acquisition: z.object({
       purchasePrice: moneyRequiredPositive,
       downPaymentPercent: percentRequired,

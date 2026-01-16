@@ -16,7 +16,10 @@ function getProjectPayload(formData: FormData) {
   const raw = getString(formData, "payload")
   const json = raw ? (JSON.parse(raw) as unknown) : null
   const parsed = projectInputFormSchema.parse(json)
-  return toProjectInput(parsed)
+  return {
+    input: toProjectInput(parsed),
+    propertyType: parsed.propertyType,
+  }
 }
 
 async function getFileData(formData: FormData, key: string): Promise<{ name: string; data: Uint8Array } | null> {
@@ -36,7 +39,7 @@ export async function createDealAction(formData: FormData) {
   const session = await auth()
   if (!session?.user?.id) redirect("/?callbackUrl=/dashboard")
 
-  const input = getProjectPayload(formData)
+  const { input, propertyType } = getProjectPayload(formData)
   const viability = calculateProjectViability(input)
 
   // Processar arquivos
@@ -47,6 +50,7 @@ export async function createDealAction(formData: FormData) {
     data: {
       userId: session.user.id,
       status: "Em análise",
+      propertyType,
 
       purchasePrice: input.acquisition.purchasePrice,
       acquisitionCosts: viability.acquisitionCosts,
@@ -100,7 +104,7 @@ export async function updateDealAction(dealId: string, formData: FormData) {
   const session = await auth()
   if (!session?.user?.id) redirect("/?callbackUrl=/dashboard")
 
-  const input = getProjectPayload(formData)
+  const { input, propertyType } = getProjectPayload(formData)
   const viability = calculateProjectViability(input)
 
   // Processar arquivos
@@ -133,6 +137,7 @@ export async function updateDealAction(dealId: string, formData: FormData) {
   const updated = await prisma.deal.updateMany({
     where: { id: dealId, userId: session.user.id },
     data: {
+      propertyType,
       purchasePrice: input.acquisition.purchasePrice,
       acquisitionCosts: viability.acquisitionCosts,
 
