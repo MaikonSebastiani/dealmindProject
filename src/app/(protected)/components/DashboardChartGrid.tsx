@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PortfolioTypeDonutChart } from "./PortfolioTypeDonutChart"
 import { PortfolioEvolutionChart } from "./PortfolioEvolutionChart"
+import { TopDealsRanking, type TopDeal } from "./TopDealsRanking"
 import { prisma } from "@/lib/db/prisma"
 import { auth } from "@/auth"
 
@@ -14,6 +15,31 @@ type EvolutionDataPoint = {
   month: string
   value: number
   label: string
+}
+
+// Calcular lucro de um deal vendido
+function calculateDealProfit(deal: {
+  purchasePrice: number
+  resalePrice: number | null
+  acquisitionCosts: number
+  monthlyCondoFee: number | null
+  monthlyIptu: number | null
+  brokerFeePercent: number | null
+  expectedSaleMonths: number
+  renovationCosts: number | null
+}): number {
+  const resalePrice = deal.resalePrice ?? 0
+  if (resalePrice <= 0) return 0
+
+  const holdingCosts = ((deal.monthlyCondoFee ?? 0) + (deal.monthlyIptu ?? 0)) * deal.expectedSaleMonths
+  const brokerFee = (deal.brokerFeePercent ?? 0) / 100 * resalePrice
+  const renovationCosts = deal.renovationCosts ?? 0
+
+  const profit = resalePrice - deal.purchasePrice - deal.acquisitionCosts - holdingCosts - brokerFee - renovationCosts
+  // Desconto IR de 15% sobre lucro
+  const incomeTax = profit > 0 ? profit * 0.15 : 0
+  
+  return Math.max(0, profit - incomeTax)
 }
 
 const typeColors: Record<string, string> = {
@@ -42,6 +68,7 @@ export async function DashboardChartGrid() {
 
   let segments: PropertyTypeSegment[] = []
   let evolutionData: EvolutionDataPoint[] = []
+  let topDeals: TopDeal[] = []
 
   if (session?.user?.id) {
     // Buscar deals com tipo de imóvel
@@ -53,6 +80,40 @@ export async function DashboardChartGrid() {
         purchasePrice: true,
       },
     })
+
+    // ======= Top Deals por Lucro (Vendidos) =======
+    const soldDeals = await prisma.deal.findMany({
+      where: { 
+        userId: session.user.id,
+        status: "Vendido",
+      },
+      select: {
+        id: true,
+        propertyName: true,
+        propertyType: true,
+        purchasePrice: true,
+        resalePrice: true,
+        acquisitionCosts: true,
+        monthlyCondoFee: true,
+        monthlyIptu: true,
+        brokerFeePercent: true,
+        expectedSaleMonths: true,
+        renovationCosts: true,
+        roi: true,
+      },
+    })
+
+    // Calcular lucro e ordenar por maior lucro
+    topDeals = soldDeals
+      .map(deal => ({
+        id: deal.id,
+        name: deal.propertyName ?? "Sem nome",
+        propertyType: deal.propertyType ?? "Apartamento",
+        profit: calculateDealProfit(deal),
+        roi: deal.roi ?? 0,
+      }))
+      .sort((a, b) => b.profit - a.profit)
+      .slice(0, 3)
 
     // ======= Gráfico de Distribuição por Tipo =======
     const typeCounts: Record<string, number> = {}
@@ -134,30 +195,48 @@ export async function DashboardChartGrid() {
   }
 
   return (
-    <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <Card className="lg:col-span-2 bg-[#0B0F17] border-[#141B29] rounded-2xl">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm">Evolução do Patrimônio</CardTitle>
-            <div className="flex items-center gap-2 text-xs text-[#9AA6BC]">
-              <span className="h-2 w-2 rounded-full bg-[#4F7DFF]" />
-              Capital investido
+    <section className="space-y-6">
+      {/* Linha 1: Gráfico de Evolução */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 bg-[#0B0F17] border-[#141B29] rounded-2xl">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">Evolução do Patrimônio</CardTitle>
+              <div className="flex items-center gap-2 text-xs text-[#9AA6BC]">
+                <span className="h-2 w-2 rounded-full bg-[#4F7DFF]" />
+                Capital investido
+              </div>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <PortfolioEvolutionChart data={evolutionData.length > 0 ? evolutionData : undefined} />
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            <PortfolioEvolutionChart data={evolutionData.length > 0 ? evolutionData : undefined} />
+          </CardContent>
+        </Card>
 
-      <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Distribuição por Tipo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PortfolioTypeDonutChart segments={segments.length > 0 ? segments : undefined} />
-        </CardContent>
-      </Card>
+        <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Distribuição por Tipo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PortfolioTypeDonutChart segments={segments.length > 0 ? segments : undefined} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Linha 2: Top Deals */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 bg-[#0B0F17] border-[#141B29] rounded-2xl">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">🏆 Top Deals por Lucro</CardTitle>
+              <span className="text-xs text-[#7C889E]">Realizações</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <TopDealsRanking deals={topDeals.length > 0 ? topDeals : undefined} />
+          </CardContent>
+        </Card>
+      </div>
     </section>
   )
 }

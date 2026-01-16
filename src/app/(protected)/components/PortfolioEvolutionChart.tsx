@@ -25,6 +25,7 @@ function formatBRLFull(value: number) {
 export function PortfolioEvolutionChart({ data }: { data?: DataPoint[] }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // Dados de exemplo quando não há dados reais
   const defaultData: DataPoint[] = useMemo(() => {
@@ -42,10 +43,10 @@ export function PortfolioEvolutionChart({ data }: { data?: DataPoint[] }) {
   const chartData = data && data.length > 0 ? data : defaultData
   const isRealData = data && data.length > 0
 
-  // Calcular dimensões do gráfico
+  // Calcular dimensões do gráfico - padding lateral maior para pontos extremos
   const width = 580
   const height = 200
-  const padding = { top: 20, right: 20, bottom: 30, left: 60 }
+  const padding = { top: 20, right: 40, bottom: 30, left: 65 }
   const chartWidth = width - padding.left - padding.right
   const chartHeight = height - padding.top - padding.bottom
 
@@ -93,13 +94,13 @@ export function PortfolioEvolutionChart({ data }: { data?: DataPoint[] }) {
 
   // Handler de mouse move para detectar ponto mais próximo
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    if (!svgRef.current || points.length === 0) return
+    if (!svgRef.current || !containerRef.current || points.length === 0) return
 
     const svg = svgRef.current
-    const rect = svg.getBoundingClientRect()
+    const svgRect = svg.getBoundingClientRect()
     
-    // Calcular posição do mouse em coordenadas SVG
-    const mouseX = ((e.clientX - rect.left) / rect.width) * width
+    // Calcular posição do mouse em coordenadas SVG usando dimensões reais do SVG
+    const mouseX = ((e.clientX - svgRect.left) / svgRect.width) * width
 
     // Encontrar o ponto mais próximo no eixo X
     let closestIndex = 0
@@ -113,9 +114,9 @@ export function PortfolioEvolutionChart({ data }: { data?: DataPoint[] }) {
       }
     }
 
-    // Só mostrar tooltip se estiver próximo o suficiente (dentro da área do gráfico)
-    const threshold = chartWidth / (points.length - 1 || 1) / 2 + 20
-    if (closestDistance <= threshold && mouseX >= padding.left - 10 && mouseX <= width - padding.right + 10) {
+    // Threshold mais generoso para melhor UX
+    const threshold = chartWidth / Math.max(points.length - 1, 1) / 2 + 30
+    if (closestDistance <= threshold && mouseX >= padding.left - 20 && mouseX <= width - padding.right + 20) {
       setHoveredIndex(closestIndex)
     } else {
       setHoveredIndex(null)
@@ -129,29 +130,35 @@ export function PortfolioEvolutionChart({ data }: { data?: DataPoint[] }) {
   const hoveredPoint = hoveredIndex !== null ? points[hoveredIndex] : null
 
   return (
-    <div className="h-64 rounded-xl border border-[#141B29] bg-gradient-to-b from-[#0B1323]/60 to-[#0B0F17] relative overflow-hidden">
-      {!isRealData && (
-        <div className="absolute top-3 right-3 z-10 text-[10px] text-[#7C889E] bg-[#0B1323] px-2 py-1 rounded-lg border border-[#141B29]">
-          Dados de exemplo
-        </div>
-      )}
+    <div 
+      ref={containerRef}
+      className="h-64 rounded-xl border border-[#141B29] bg-gradient-to-b from-[#0B1323]/60 to-[#0B0F17] relative overflow-hidden flex items-center justify-center"
+    >
+      {/* Container interno com tamanho máximo fixo */}
+      <div className="relative w-full h-full max-w-[800px]">
+        {!isRealData && (
+          <div className="absolute top-3 right-3 z-10 text-[10px] text-[#7C889E] bg-[#0B1323] px-2 py-1 rounded-lg border border-[#141B29]">
+            Dados de exemplo
+          </div>
+        )}
 
-      {/* Grid de fundo */}
-      <div 
-        className="absolute inset-0 opacity-30 pointer-events-none" 
-        style={{ 
-          backgroundImage: "linear-gradient(#141B29 1px, transparent 1px), linear-gradient(90deg, #141B29 1px, transparent 1px)", 
-          backgroundSize: "48px 48px" 
-        }} 
-      />
+        {/* Grid de fundo */}
+        <div 
+          className="absolute inset-0 opacity-30 pointer-events-none" 
+          style={{ 
+            backgroundImage: "linear-gradient(#141B29 1px, transparent 1px), linear-gradient(90deg, #141B29 1px, transparent 1px)", 
+            backgroundSize: "48px 48px" 
+          }} 
+        />
 
-      <svg 
-        ref={svgRef}
-        viewBox={`0 0 ${width} ${height}`} 
-        className="absolute inset-0 h-full w-full cursor-crosshair"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-      >
+        <svg 
+          ref={svgRef}
+          viewBox={`0 0 ${width} ${height}`} 
+          preserveAspectRatio="xMidYMid meet"
+          className="absolute inset-0 h-full w-full cursor-crosshair"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+        >
         {/* Linhas do grid Y */}
         {yGridLines.map((line, i) => (
           <g key={i}>
@@ -245,25 +252,26 @@ export function PortfolioEvolutionChart({ data }: { data?: DataPoint[] }) {
             <stop offset="100%" stopColor="#4F7DFF" stopOpacity="0" />
           </linearGradient>
         </defs>
-      </svg>
+        </svg>
 
-      {/* Tooltip */}
-      {hoveredPoint && (
-        <div
-          className="absolute z-20 pointer-events-none transform -translate-x-1/2"
-          style={{
-            left: `${(hoveredPoint.x / width) * 100}%`,
-            top: "8px",
-          }}
-        >
-          <div className="rounded-xl border border-[#141B29] bg-[#0B0F17]/95 backdrop-blur px-3 py-2 shadow-xl">
-            <div className="text-xs text-[#7C889E]">{hoveredPoint.label}</div>
-            <div className="text-sm font-semibold text-[#4F7DFF]">
-              {formatBRLFull(hoveredPoint.value)}
+        {/* Tooltip */}
+        {hoveredPoint && (
+          <div
+            className="absolute z-20 pointer-events-none transform -translate-x-1/2"
+            style={{
+              left: `${(hoveredPoint.x / width) * 100}%`,
+              top: "8px",
+            }}
+          >
+            <div className="rounded-xl border border-[#141B29] bg-[#0B0F17]/95 backdrop-blur px-3 py-2 shadow-xl">
+              <div className="text-xs text-[#7C889E]">{hoveredPoint.label}</div>
+              <div className="text-sm font-semibold text-[#4F7DFF]">
+                {formatBRLFull(hoveredPoint.value)}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
