@@ -40,6 +40,7 @@ const intPositive = z
 export const propertyTypes = ["Apartamento", "Casa", "Comercial", "Lote"] as const
 
 export const projectInputFormSchema = z.object({
+  propertyName: z.string().trim().min(1, "Informe o nome do imóvel"),
   propertyType: z.enum(propertyTypes),
   acquisition: z.object({
     purchasePrice: moneyRequiredPositive,

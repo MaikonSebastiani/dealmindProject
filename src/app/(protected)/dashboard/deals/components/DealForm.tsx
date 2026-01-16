@@ -294,6 +294,7 @@ export function DealForm(props: {
     resolver: zodResolver(dealFormSchema),
     mode: "onBlur",
     defaultValues: props.defaultValues ?? {
+      propertyName: "",
       propertyType: "Apartamento",
       acquisition: {
         purchasePrice: "",
@@ -379,15 +380,35 @@ export function DealForm(props: {
 
       <div className="px-6 md:px-10 py-6 space-y-4">
         <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Aquisição - inclui tipo de imóvel */}
+          {/* Aquisição - inclui nome e tipo de imóvel */}
           <SectionCard title="Aquisição">
             <div className="grid grid-cols-2 md:grid-cols-12 gap-3">
+              <Controller
+                name="propertyName"
+                control={control}
+                render={({ field }) => (
+                  <div className="col-span-2 md:col-span-6">
+                    <label htmlFor="propertyName" className="text-sm text-[#9AA6BC]">Nome do imóvel</label>
+                    <Input
+                      id="propertyName"
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      placeholder="Ex: Apartamento Centro, Casa Praia..."
+                      className="h-10 bg-[#05060B] border-[#141B29] text-white placeholder-[#7C889E] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-[#2D5BFF]"
+                    />
+                    {errors.propertyName?.message && (
+                      <div className="mt-1 text-xs text-rose-400">{String(errors.propertyName.message)}</div>
+                    )}
+                  </div>
+                )}
+              />
               <Controller
                 name="propertyType"
                 control={control}
                 render={({ field }) => (
-                  <div className="col-span-2 md:col-span-3">
-                    <label htmlFor="propertyType" className="text-sm text-[#9AA6BC]">Tipo de imóvel</label>
+                  <div className="col-span-2 md:col-span-2">
+                    <label htmlFor="propertyType" className="text-sm text-[#9AA6BC]">Tipo</label>
                     <select
                       id="propertyType"
                       value={field.value}

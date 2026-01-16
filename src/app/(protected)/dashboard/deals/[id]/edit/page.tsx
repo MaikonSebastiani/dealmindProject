@@ -39,6 +39,7 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
   const int = (v: number | null, fallback: string) => (typeof v === "number" ? String(v) : fallback)
 
   const defaultValues = {
+    propertyName: deal.propertyName ?? "",
     propertyType: getPropertyType(deal.propertyType),
     acquisition: {
       purchasePrice: money(deal.purchasePrice),

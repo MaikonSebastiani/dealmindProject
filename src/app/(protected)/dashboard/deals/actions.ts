@@ -6,6 +6,9 @@ import { projectInputFormSchema, toProjectInput } from "@/lib/domain/deals/proje
 import { calculateProjectViability } from "@/lib/domain/finance/calculateProjectViability"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import { createAIVisionClient } from "@/lib/ai/clients"
+import { PROPERTY_REGISTRY_PROMPT, PROPERTY_REGISTRY_SYSTEM } from "@/lib/ai/prompts/property-registry"
+import { AUCTION_NOTICE_PROMPT, AUCTION_NOTICE_SYSTEM } from "@/lib/ai/prompts/auction-notice"
 
 function getString(formData: FormData, key: string) {
   const v = formData.get(key)
@@ -18,6 +21,7 @@ function getProjectPayload(formData: FormData) {
   const parsed = projectInputFormSchema.parse(json)
   return {
     input: toProjectInput(parsed),
+    propertyName: parsed.propertyName,
     propertyType: parsed.propertyType,
   }
 }
@@ -39,7 +43,7 @@ export async function createDealAction(formData: FormData) {
   const session = await auth()
   if (!session?.user?.id) redirect("/?callbackUrl=/dashboard")
 
-  const { input, propertyType } = getProjectPayload(formData)
+  const { input, propertyName, propertyType } = getProjectPayload(formData)
   const viability = calculateProjectViability(input)
 
   // Processar arquivos
@@ -52,6 +56,7 @@ export async function createDealAction(formData: FormData) {
     data: {
       userId: session.user.id,
       status: initialStatus,
+      propertyName,
       propertyType,
 
       purchasePrice: input.acquisition.purchasePrice,
@@ -117,7 +122,7 @@ export async function updateDealAction(dealId: string, formData: FormData) {
   const session = await auth()
   if (!session?.user?.id) redirect("/?callbackUrl=/dashboard")
 
-  const { input, propertyType } = getProjectPayload(formData)
+  const { input, propertyName, propertyType } = getProjectPayload(formData)
   const viability = calculateProjectViability(input)
 
   // Processar arquivos
@@ -150,6 +155,7 @@ export async function updateDealAction(dealId: string, formData: FormData) {
   const updated = await prisma.deal.updateMany({
     where: { id: dealId, userId: session.user.id },
     data: {
+      propertyName,
       propertyType,
     purchasePrice: input.acquisition.purchasePrice,
     acquisitionCosts: viability.acquisitionCosts,
@@ -290,4 +296,161 @@ export async function updateDealStatusAction(
   revalidatePath("/dashboard")
 
   return { success: true }
+}
+
+export async function analyzeDealDocumentsAction(dealId: string) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return { success: false, error: "Não autorizado" }
+  }
+
+  // Buscar o deal com os documentos
+  const deal = await prisma.deal.findFirst({
+    where: { id: dealId, userId: session.user.id },
+    select: {
+      propertyRegistryData: true,
+      propertyRegistryFileName: true,
+      auctionNoticeData: true,
+      auctionNoticeFileName: true,
+    },
+  })
+
+  if (!deal) {
+    return { success: false, error: "Deal não encontrado" }
+  }
+
+  const hasPropertyRegistry = deal.propertyRegistryData !== null
+  const hasAuctionNotice = deal.auctionNoticeData !== null
+
+  console.log("[AI Analysis] Documentos encontrados:", {
+    hasPropertyRegistry,
+    hasAuctionNotice,
+    propertyRegistryFileName: deal.propertyRegistryFileName,
+    auctionNoticeFileName: deal.auctionNoticeFileName,
+  })
+
+  if (!hasPropertyRegistry && !hasAuctionNotice) {
+    return { success: false, error: "Nenhum documento encontrado para análise" }
+  }
+
+  try {
+    const aiClient = createAIVisionClient()
+    const analysisData: Record<string, unknown> = {}
+    let highestConfidence = 0
+
+    // Analisar matrícula se existir
+    if (hasPropertyRegistry && deal.propertyRegistryData) {
+      console.log("[AI Analysis] Iniciando análise da matrícula...")
+      const base64 = Buffer.from(deal.propertyRegistryData).toString("base64")
+      
+      const response = await aiClient.analyze({
+        systemPrompt: PROPERTY_REGISTRY_SYSTEM,
+        userPrompt: PROPERTY_REGISTRY_PROMPT,
+        imageBase64: base64,
+        mimeType: "application/pdf",
+      })
+
+      console.log("[AI Analysis] Resposta da matrícula recebida, tamanho:", response.content?.length ?? 0)
+
+      if (response.content) {
+        try {
+          // Tenta parsear diretamente primeiro (se veio JSON puro)
+          const extracted = JSON.parse(response.content)
+          analysisData.propertyRegistry = extracted
+          if (extracted.confidence > highestConfidence) {
+            highestConfidence = extracted.confidence
+          }
+          console.log("[AI Analysis] Matrícula extraída com sucesso")
+        } catch {
+          // Se falhar, tenta extrair JSON do texto
+          const jsonMatch = response.content.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            try {
+              const extracted = JSON.parse(jsonMatch[0])
+              analysisData.propertyRegistry = extracted
+              if (extracted.confidence > highestConfidence) {
+                highestConfidence = extracted.confidence
+              }
+              console.log("[AI Analysis] Matrícula extraída com sucesso (via regex)")
+            } catch (parseError) {
+              console.log("[AI Analysis] Erro ao parsear JSON da matrícula:", parseError)
+              console.log("[AI Analysis] Conteúdo:", response.content.substring(0, 1000))
+            }
+          } else {
+            console.log("[AI Analysis] Não foi possível extrair JSON da matrícula. Resposta:", response.content.substring(0, 500))
+          }
+        }
+      }
+    }
+
+    // Analisar edital se existir
+    if (hasAuctionNotice && deal.auctionNoticeData) {
+      console.log("[AI Analysis] Iniciando análise do edital...")
+      const base64 = Buffer.from(deal.auctionNoticeData).toString("base64")
+      
+      const response = await aiClient.analyze({
+        systemPrompt: AUCTION_NOTICE_SYSTEM,
+        userPrompt: AUCTION_NOTICE_PROMPT,
+        imageBase64: base64,
+        mimeType: "application/pdf",
+      })
+
+      console.log("[AI Analysis] Resposta do edital recebida, tamanho:", response.content?.length ?? 0)
+
+      if (response.content) {
+        try {
+          // Tenta parsear diretamente primeiro (se veio JSON puro)
+          const extracted = JSON.parse(response.content)
+          analysisData.auctionNotice = extracted
+          if (extracted.confidence > highestConfidence) {
+            highestConfidence = extracted.confidence
+          }
+          console.log("[AI Analysis] Edital extraído com sucesso")
+        } catch {
+          // Se falhar, tenta extrair JSON do texto
+          const jsonMatch = response.content.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            try {
+              const extracted = JSON.parse(jsonMatch[0])
+              analysisData.auctionNotice = extracted
+              if (extracted.confidence > highestConfidence) {
+                highestConfidence = extracted.confidence
+              }
+              console.log("[AI Analysis] Edital extraído com sucesso (via regex)")
+            } catch (parseError) {
+              console.log("[AI Analysis] Erro ao parsear JSON do edital:", parseError)
+              console.log("[AI Analysis] Conteúdo:", response.content.substring(0, 1000))
+            }
+          } else {
+            console.log("[AI Analysis] Não foi possível extrair JSON do edital. Resposta:", response.content.substring(0, 500))
+          }
+        }
+      }
+    }
+
+    console.log("[AI Analysis] Análise concluída. Dados:", Object.keys(analysisData))
+
+    // Salvar análise no banco
+    await prisma.deal.update({
+      where: { id: dealId },
+      data: {
+        aiAnalysisData: JSON.stringify(analysisData),
+        aiAnalysisDate: new Date(),
+        aiAnalysisConfidence: highestConfidence,
+      },
+    })
+
+    revalidatePath(`/dashboard/deals/${dealId}`)
+
+    return { 
+      success: true, 
+      data: analysisData,
+    }
+  } catch (error) {
+    console.error("Erro na análise por IA:", error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Erro ao processar documentos" 
+    }
+  }
 }

@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db/prisma"
 import { auth } from "@/auth"
 import { DeleteDealDialog } from "../components/DeleteDealDialog"
 import { DealStatusSelector } from "../components/DealStatusSelector"
+import { AIAnalysisCard } from "../components/AIAnalysisCard"
 import { deleteDealAction } from "../actions"
 import { calculateProjectViability } from "@/lib/domain/finance/calculateProjectViability"
 import type { ProjectInput } from "@/lib/domain/deals/projectInput"
@@ -104,21 +105,16 @@ function formatMonthsLabel(months: number) {
   return months === 1 ? "1 mês" : `${months} meses`
 }
 
-function DocumentCard(props: { 
+function DocumentChip(props: { 
   label: string
   fileName: string | null
   href: string
 }) {
   if (!props.fileName) {
     return (
-      <div className="rounded-2xl border border-dashed border-[#141B29] bg-[#05060B]/50 p-4">
-        <div className="flex items-center gap-3 text-[#7C889E]">
-          <FileText className="h-5 w-5" />
-          <div>
-            <div className="text-sm">{props.label}</div>
-            <div className="text-xs">Nenhum arquivo anexado</div>
-          </div>
-        </div>
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-[#141B29] bg-[#05060B]/50 text-[#7C889E]">
+        <FileText className="h-4 w-4 shrink-0" />
+        <span className="text-xs truncate">{props.label}</span>
       </div>
     )
   }
@@ -128,20 +124,14 @@ function DocumentCard(props: {
       href={props.href} 
       target="_blank" 
       rel="noopener noreferrer"
-      className="rounded-2xl border border-[#141B29] bg-[#05060B] p-4 hover:bg-[#0B0F17] hover:border-[#2D5BFF] transition-colors block"
+      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#141B29] bg-[#05060B] hover:bg-[#0B0F17] hover:border-[#2D5BFF] transition-colors group"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B0F17] border border-[#141B29]">
-            <FileText className="h-5 w-5 text-[#4F7DFF]" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-sm text-white">{props.label}</div>
-            <div className="text-xs text-[#7C889E] truncate">{props.fileName}</div>
-          </div>
-        </div>
-        <ExternalLink className="h-4 w-4 text-[#7C889E] shrink-0" />
+      <FileText className="h-4 w-4 text-[#4F7DFF] shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className="text-xs text-white truncate">{props.label}</div>
+        <div className="text-[10px] text-[#7C889E] truncate">{props.fileName}</div>
       </div>
+      <ExternalLink className="h-3 w-3 text-[#7C889E] group-hover:text-[#4F7DFF] shrink-0" />
     </a>
   )
 }
@@ -285,28 +275,36 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
 
         <ViabilityCard status={viabilityStatus} detail={viabilityDetail} />
 
-        {/* Documentos */}
-        <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Documentos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <DocumentCard
-                label="Matrícula do imóvel"
-                fileName={deal.propertyRegistryFileName}
-                href={`/api/deals/${deal.id}/documents/property-registry`}
+        {/* Documentos - barra compacta */}
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[#141B29] bg-[#0B0F17]">
+          <span className="text-xs text-[#7C889E] flex items-center gap-1.5 shrink-0">
+            <FileText className="h-3.5 w-3.5" />
+            Documentos:
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <DocumentChip
+              label="Matrícula do imóvel"
+              fileName={deal.propertyRegistryFileName}
+              href={`/api/deals/${deal.id}/documents/property-registry`}
+            />
+            {(isAuction || deal.auctionNoticeFileName) && (
+              <DocumentChip
+                label="Edital do leilão"
+                fileName={deal.auctionNoticeFileName}
+                href={`/api/deals/${deal.id}/documents/auction-notice`}
               />
-              {(isAuction || deal.auctionNoticeFileName) && (
-                <DocumentCard
-                  label="Edital do leilão"
-                  fileName={deal.auctionNoticeFileName}
-                  href={`/api/deals/${deal.id}/documents/auction-notice`}
-                />
-              )}
-            </div>
-          </CardContent>
-        </Card>
+            )}
+          </div>
+        </div>
+
+        {/* Análise por IA */}
+        <AIAnalysisCard
+          dealId={deal.id}
+          hasDocuments={Boolean(deal.propertyRegistryFileName || deal.auctionNoticeFileName)}
+          existingAnalysis={deal.aiAnalysisData ? JSON.parse(deal.aiAnalysisData) : null}
+          analysisDate={deal.aiAnalysisDate}
+          analysisConfidence={deal.aiAnalysisConfidence}
+        />
 
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">

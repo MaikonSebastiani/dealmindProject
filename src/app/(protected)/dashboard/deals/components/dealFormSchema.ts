@@ -52,6 +52,7 @@ export type PropertyType = (typeof propertyTypes)[number]
 
 export const dealFormSchema = z
   .object({
+    propertyName: z.string().trim().min(1, "Informe o nome do imóvel"),
     propertyType: z.enum(propertyTypes, {
       required_error: "Selecione o tipo de imóvel",
       invalid_type_error: "Tipo de imóvel inválido",
