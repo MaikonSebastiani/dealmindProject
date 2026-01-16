@@ -196,7 +196,7 @@ export async function DashboardChartGrid() {
 
   return (
     <section className="space-y-6">
-      {/* Linha 1: Gráfico de Evolução */}
+      {/* Linha 1: Gráfico de Evolução + Distribuição por Tipo */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 bg-[#0B0F17] border-[#141B29] rounded-2xl">
           <CardHeader className="pb-2">
@@ -224,19 +224,17 @@ export async function DashboardChartGrid() {
       </div>
 
       {/* Linha 2: Top Deals */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 bg-[#0B0F17] border-[#141B29] rounded-2xl">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm">🏆 Top Deals por Lucro</CardTitle>
-              <span className="text-xs text-[#7C889E]">Realizações</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <TopDealsRanking deals={topDeals.length > 0 ? topDeals : undefined} />
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm">🏆 Top Deals por Lucro</CardTitle>
+            <span className="text-xs text-[#7C889E]">Realizações</span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <TopDealsRanking deals={topDeals.length > 0 ? topDeals : undefined} />
+        </CardContent>
+      </Card>
     </section>
   )
 }

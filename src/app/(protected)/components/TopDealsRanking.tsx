@@ -16,15 +16,15 @@ function formatBRL(value: number) {
 }
 
 const medalColors = [
-  { bg: "bg-amber-500/20", border: "border-amber-500/40", text: "text-amber-400", icon: "🥇" },
-  { bg: "bg-slate-400/20", border: "border-slate-400/40", text: "text-slate-300", icon: "🥈" },
-  { bg: "bg-orange-600/20", border: "border-orange-600/40", text: "text-orange-400", icon: "🥉" },
+  { bg: "bg-amber-500/20", border: "border-amber-500/40", text: "text-amber-400", icon: "🥇", glow: "shadow-amber-500/10" },
+  { bg: "bg-slate-400/20", border: "border-slate-400/40", text: "text-slate-300", icon: "🥈", glow: "shadow-slate-400/10" },
+  { bg: "bg-orange-600/20", border: "border-orange-600/40", text: "text-orange-400", icon: "🥉", glow: "shadow-orange-600/10" },
 ]
 
 const defaultDeals: TopDeal[] = [
-  { id: "1", name: "Apartamento Vila Nova", propertyType: "Apartamento", profit: 85000, roi: 32.5 },
-  { id: "2", name: "Casa Jardim Europa", propertyType: "Casa", profit: 62000, roi: 28.1 },
-  { id: "3", name: "Lote Industrial", propertyType: "Comercial", profit: 45000, roi: 25.8 },
+  { id: "1", name: "Apartamento Vila Nova", propertyType: "Apartamento", profit: 85000, roi: 0.325 },
+  { id: "2", name: "Casa Jardim Europa", propertyType: "Casa", profit: 62000, roi: 0.281 },
+  { id: "3", name: "Lote Industrial", propertyType: "Comercial", profit: 45000, roi: 0.258 },
 ]
 
 export function TopDealsRanking({ deals }: { deals?: TopDeal[] }) {
@@ -33,7 +33,7 @@ export function TopDealsRanking({ deals }: { deals?: TopDeal[] }) {
 
   if (topDeals.length === 0) {
     return (
-      <div className="h-64 rounded-xl border border-[#141B29] bg-gradient-to-b from-[#0B1323]/60 to-[#0B0F17] flex flex-col items-center justify-center gap-3">
+      <div className="rounded-xl border border-[#141B29] bg-gradient-to-b from-[#0B1323]/60 to-[#0B0F17] flex flex-col items-center justify-center gap-3 py-12">
         <Trophy className="h-10 w-10 text-[#2A3548]" />
         <p className="text-sm text-[#7C889E]">Nenhum deal vendido ainda</p>
         <p className="text-xs text-[#5A6478]">Complete suas primeiras vendas para ver o ranking</p>
@@ -41,8 +41,10 @@ export function TopDealsRanking({ deals }: { deals?: TopDeal[] }) {
     )
   }
 
+  const totalProfit = topDeals.reduce((acc, d) => acc + d.profit, 0)
+
   return (
-    <div className="h-64 rounded-xl border border-[#141B29] bg-gradient-to-b from-[#0B1323]/60 to-[#0B0F17] relative overflow-hidden">
+    <div className="rounded-xl border border-[#141B29] bg-gradient-to-b from-[#0B1323]/60 to-[#0B0F17] relative overflow-hidden">
       {!isRealData && (
         <div className="absolute top-3 right-3 z-10 text-[10px] text-[#7C889E] bg-[#0B1323] px-2 py-1 rounded-lg border border-[#141B29]">
           Dados de exemplo
@@ -58,57 +60,60 @@ export function TopDealsRanking({ deals }: { deals?: TopDeal[] }) {
         }} 
       />
 
-      <div className="relative p-4 h-full flex flex-col">
-        {/* Lista de deals */}
-        <div className="flex-1 flex flex-col gap-2">
+      <div className="relative p-4">
+        {/* Grid horizontal de deals */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {topDeals.slice(0, 3).map((deal, index) => {
             const medal = medalColors[index]
             return (
               <Link
                 key={deal.id}
                 href={`/dashboard/deals/${deal.id}`}
-                className={`group flex items-center gap-3 p-3 rounded-xl border ${medal.border} ${medal.bg} hover:bg-opacity-40 transition-all duration-200`}
+                className={`group flex flex-col p-4 rounded-xl border ${medal.border} ${medal.bg} hover:scale-[1.02] transition-all duration-200 shadow-lg ${medal.glow}`}
               >
-                {/* Posição */}
-                <div className="text-xl">{medal.icon}</div>
-
-                {/* Info do deal */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate group-hover:text-[#4F7DFF] transition-colors">
-                    {deal.name}
-                  </p>
-                  <p className="text-xs text-[#7C889E]">{deal.propertyType}</p>
+                {/* Header com medalha e tipo */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-2xl">{medal.icon}</div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#0B1323] border border-[#141B29] text-[#7C889E]">
+                    {deal.propertyType}
+                  </span>
                 </div>
 
-                {/* Lucro e ROI */}
-                <div className="text-right">
-                  <p className={`text-sm font-semibold ${medal.text}`}>
+                {/* Nome do deal */}
+                <p className="text-sm font-medium text-white truncate group-hover:text-[#4F7DFF] transition-colors mb-3">
+                  {deal.name}
+                </p>
+
+                {/* Lucro */}
+                <div className="mt-auto">
+                  <p className={`text-lg font-bold ${medal.text}`}>
                     {formatBRL(deal.profit)}
                   </p>
-                  <div className="flex items-center justify-end gap-1">
+                  <div className="flex items-center gap-1 mt-1">
                     <TrendingUp className="h-3 w-3 text-emerald-500" />
                     <span className="text-xs text-emerald-400">ROI {(deal.roi * 100).toFixed(1)}%</span>
                   </div>
                 </div>
 
-                {/* Seta */}
-                <ArrowUpRight className="h-4 w-4 text-[#5A6478] group-hover:text-[#4F7DFF] transition-colors" />
+                {/* Link indicator */}
+                <div className="flex items-center justify-end mt-3 pt-2 border-t border-[#141B29]/50">
+                  <span className="text-[10px] text-[#5A6478] group-hover:text-[#4F7DFF] transition-colors flex items-center gap-1">
+                    Ver detalhes
+                    <ArrowUpRight className="h-3 w-3" />
+                  </span>
+                </div>
               </Link>
             )
           })}
         </div>
 
         {/* Footer com total */}
-        {topDeals.length > 0 && (
-          <div className="pt-3 border-t border-[#141B29] mt-auto">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-[#7C889E]">Lucro total realizações</span>
-              <span className="text-emerald-400 font-semibold">
-                {formatBRL(topDeals.reduce((acc, d) => acc + d.profit, 0))}
-              </span>
-            </div>
-          </div>
-        )}
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#141B29]">
+          <span className="text-xs text-[#7C889E]">Lucro total realizações</span>
+          <span className="text-emerald-400 font-semibold text-sm">
+            {formatBRL(totalProfit)}
+          </span>
+        </div>
       </div>
     </div>
   )

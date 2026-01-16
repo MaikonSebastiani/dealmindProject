@@ -3,9 +3,8 @@ import { prisma } from "@/lib/db/prisma"
 import { DashboardHeader } from "../components/DashboardHeader"
 import { KpiCard } from "../components/KpiCard"
 import { DashboardChartGrid } from "../components/DashboardChartGrid"
-import { TransactionsPanel } from "../components/TransactionsPanel"
 import { PortfolioTable } from "../components/PortfolioTable"
-import { Banknote, Building2, TrendingUp, Wallet, Search, Home, BadgeCheck, Key, Percent } from "lucide-react"
+import { Banknote, Building2, Wallet, Search, Home, BadgeCheck, Key, Percent } from "lucide-react"
 import { activeStatuses, pipelineStatuses, type DealStatus } from "@/lib/domain/deals/dealStatus"
 
 // Forçar revalidação a cada requisição (sem cache)
@@ -230,7 +229,6 @@ export default async function DashboardPage() {
         </section>
 
         <DashboardChartGrid />
-        <TransactionsPanel />
         <PortfolioTable />
       </div>
     </>
