@@ -1,8 +1,14 @@
 "use client"
 
 import { Bell, Search } from "lucide-react"
+import { UserMenu } from "./UserMenu"
 
-export function DashboardHeader({ userName }: { userName: string }) {
+interface DashboardHeaderProps {
+  userName: string
+  userEmail?: string
+}
+
+export function DashboardHeader({ userName, userEmail }: DashboardHeaderProps) {
   return (
     <header className="sticky top-0 z-40 bg-[#05060B]/80 backdrop-blur border-b border-[#141B29]">
       <div className="flex items-center justify-between px-10 py-5">
@@ -16,7 +22,7 @@ export function DashboardHeader({ userName }: { userName: string }) {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="relative w-[320px]">
+          <div className="relative w-[320px] hidden md:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7C889E]" />
             <input
               placeholder="Buscar imóveis..."
@@ -24,21 +30,11 @@ export function DashboardHeader({ userName }: { userName: string }) {
             />
           </div>
 
-          <button className="h-9 w-9 rounded-lg border border-[#141B29] bg-[#0B0F17] grid place-items-center">
+          <button className="h-9 w-9 rounded-lg border border-[#141B29] bg-[#0B0F17] grid place-items-center hover:bg-[#0B1323] transition-colors">
             <Bell className="h-4 w-4 text-[#9AA6BC]" />
           </button>
 
-          <div className="flex items-center gap-2 pl-2">
-            <div className="h-9 w-9 rounded-full bg-[#0B0F17] border border-[#141B29] grid place-items-center text-xs text-white">
-              {userName
-                .split(" ")
-                .slice(0, 2)
-                .map((p) => p[0])
-                .join("")
-                .toUpperCase()}
-            </div>
-            <div className="text-sm text-[#9AA6BC]">{userName}</div>
-          </div>
+          <UserMenu userName={userName} userEmail={userEmail} />
         </div>
       </div>
     </header>

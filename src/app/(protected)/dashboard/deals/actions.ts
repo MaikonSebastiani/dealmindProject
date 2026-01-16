@@ -46,10 +46,12 @@ export async function createDealAction(formData: FormData) {
   const propertyRegistry = await getFileData(formData, "propertyRegistryFile")
   const auctionNotice = await getFileData(formData, "auctionNoticeFile")
 
+  const initialStatus = "Em análise"
+
   const deal = await prisma.deal.create({
     data: {
       userId: session.user.id,
-      status: "Em análise",
+      status: initialStatus,
       propertyType,
 
       purchasePrice: input.acquisition.purchasePrice,
@@ -92,6 +94,14 @@ export async function createDealAction(formData: FormData) {
       propertyRegistryData: propertyRegistry?.data ?? null,
       auctionNoticeFileName: auctionNotice?.name ?? null,
       auctionNoticeData: auctionNotice?.data ?? null,
+
+      // Registrar histórico inicial de status
+      statusHistory: {
+        create: {
+          fromStatus: null,
+          toStatus: initialStatus,
+        },
+      },
     },
     select: { id: true },
   })
@@ -193,4 +203,64 @@ export async function deleteDealAction(dealId: string) {
 
   revalidatePath("/dashboard/deals")
   redirect("/dashboard/deals")
+}
+
+export async function updateDealStatusAction(dealId: string, newStatus: string) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return { error: "Não autorizado" }
+  }
+
+  const validStatuses = [
+    "Em análise",
+    "Aprovado",
+    "Comprado",
+    "Em reforma",
+    "Alugado",
+    "À venda",
+    "Vendido",
+    "Arquivado",
+  ]
+
+  if (!validStatuses.includes(newStatus)) {
+    return { error: "Status inválido" }
+  }
+
+  // Buscar o status atual do deal
+  const currentDeal = await prisma.deal.findFirst({
+    where: { id: dealId, userId: session.user.id },
+    select: { status: true },
+  })
+
+  if (!currentDeal) {
+    return { error: "Deal não encontrado" }
+  }
+
+  const currentStatus = currentDeal.status
+
+  // Se o status não mudou, não fazer nada
+  if (currentStatus === newStatus) {
+    return { success: true }
+  }
+
+  // Atualizar o status e registrar no histórico
+  await prisma.$transaction([
+    prisma.deal.update({
+      where: { id: dealId },
+      data: { status: newStatus },
+    }),
+    prisma.dealStatusChange.create({
+      data: {
+        dealId,
+        fromStatus: currentStatus,
+        toStatus: newStatus,
+      },
+    }),
+  ])
+
+  revalidatePath("/dashboard/deals")
+  revalidatePath(`/dashboard/deals/${dealId}`)
+  revalidatePath("/dashboard")
+
+  return { success: true }
 }

@@ -1,7 +1,138 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PortfolioTypeDonutChart } from "./PortfolioTypeDonutChart"
+import { PortfolioEvolutionChart } from "./PortfolioEvolutionChart"
+import { prisma } from "@/lib/db/prisma"
+import { auth } from "@/auth"
 
-export function DashboardChartGrid() {
+type PropertyTypeSegment = {
+  label: "Casa" | "Apartamento" | "Lote" | "Comercial"
+  percent: number
+  color: string
+}
+
+type EvolutionDataPoint = {
+  month: string
+  value: number
+  label: string
+}
+
+const typeColors: Record<string, string> = {
+  Apartamento: "#4F7DFF",
+  Casa: "#22C55E",
+  Comercial: "#F59E0B",
+  Lote: "#EC4899",
+}
+
+// Status que indicam que o imóvel está no patrimônio
+const portfolioStatuses = ["Comprado", "Em reforma", "Alugado", "À venda", "Vendido"]
+
+// Formatar mês/ano
+function formatMonthYear(date: Date): string {
+  const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+  return `${months[date.getMonth()]}/${String(date.getFullYear()).slice(2)}`
+}
+
+function formatMonthYearFull(date: Date): string {
+  const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+  return `${months[date.getMonth()]}/${date.getFullYear()}`
+}
+
+export async function DashboardChartGrid() {
+  const session = await auth()
+
+  let segments: PropertyTypeSegment[] = []
+  let evolutionData: EvolutionDataPoint[] = []
+
+  if (session?.user?.id) {
+    // Buscar deals com tipo de imóvel
+    const deals = await prisma.deal.findMany({
+      where: { userId: session.user.id },
+      select: { 
+        id: true,
+        propertyType: true,
+        purchasePrice: true,
+      },
+    })
+
+    // ======= Gráfico de Distribuição por Tipo =======
+    const typeCounts: Record<string, number> = {}
+    for (const deal of deals) {
+      const type = deal.propertyType ?? "Apartamento"
+      typeCounts[type] = (typeCounts[type] ?? 0) + 1
+    }
+
+    const total = deals.length
+
+    if (total > 0) {
+      segments = Object.entries(typeCounts)
+        .map(([type, count]) => ({
+          label: type as PropertyTypeSegment["label"],
+          percent: Math.round((count / total) * 100),
+          color: typeColors[type] ?? "#7C889E",
+        }))
+        .sort((a, b) => b.percent - a.percent)
+    }
+
+    // ======= Gráfico de Evolução do Patrimônio =======
+    // Buscar todas as mudanças de status para "Comprado" (entrada no patrimônio)
+    const statusChanges = await prisma.dealStatusChange.findMany({
+      where: {
+        deal: { userId: session.user.id },
+        toStatus: { in: portfolioStatuses },
+      },
+      include: {
+        deal: {
+          select: { purchasePrice: true },
+        },
+      },
+      orderBy: { changedAt: "asc" },
+    })
+
+    // Criar mapa de deal -> preço e data de entrada no patrimônio
+    const dealEntryMap = new Map<string, { price: number; date: Date }>()
+    
+    for (const change of statusChanges) {
+      // Só considerar a primeira vez que o deal entrou no portfólio
+      if (!dealEntryMap.has(change.dealId)) {
+        dealEntryMap.set(change.dealId, {
+          price: change.deal.purchasePrice,
+          date: change.changedAt,
+        })
+      }
+    }
+
+    // Agrupar por mês/ano e calcular valor acumulado
+    const monthlyData = new Map<string, { date: Date; total: number }>()
+    let runningTotal = 0
+
+    // Ordenar por data
+    const entries = Array.from(dealEntryMap.values()).sort(
+      (a, b) => a.date.getTime() - b.date.getTime()
+    )
+
+    for (const entry of entries) {
+      const monthKey = formatMonthYear(entry.date)
+      runningTotal += entry.price
+
+      // Atualizar ou criar entrada do mês
+      const existing = monthlyData.get(monthKey)
+      if (existing) {
+        existing.total = runningTotal
+      } else {
+        monthlyData.set(monthKey, { date: entry.date, total: runningTotal })
+      }
+    }
+
+    // Converter para array ordenado
+    evolutionData = Array.from(monthlyData.entries())
+      .sort((a, b) => a[1].date.getTime() - b[1].date.getTime())
+      .map(([month, data]) => ({
+        month,
+        value: data.total,
+        label: formatMonthYearFull(data.date),
+      }))
+  }
+
   return (
     <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <Card className="lg:col-span-2 bg-[#0B0F17] border-[#141B29] rounded-2xl">
@@ -10,24 +141,12 @@ export function DashboardChartGrid() {
             <CardTitle className="text-sm">Evolução do Patrimônio</CardTitle>
             <div className="flex items-center gap-2 text-xs text-[#9AA6BC]">
               <span className="h-2 w-2 rounded-full bg-[#4F7DFF]" />
-              Patrimônio
+              Capital investido
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-64 rounded-xl border border-[#141B29] bg-gradient-to-b from-[#0B1323]/60 to-[#0B0F17] relative overflow-hidden">
-            <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "linear-gradient(#141B29 1px, transparent 1px), linear-gradient(90deg, #141B29 1px, transparent 1px)", backgroundSize: "48px 48px" }} />
-            <svg viewBox="0 0 600 220" className="absolute inset-0 h-full w-full">
-              <path
-                d="M20 160 C 90 140, 120 150, 170 145 S 280 130, 330 120 S 430 105, 480 92 S 560 75, 585 70"
-                fill="none"
-                stroke="#4F7DFF"
-                strokeWidth="3"
-              />
-            </svg>
-            <div className="absolute left-4 top-4 text-xs text-[#7C889E]">R$</div>
-            <div className="absolute right-4 bottom-4 text-xs text-[#7C889E]">Dez</div>
-          </div>
+          <PortfolioEvolutionChart data={evolutionData.length > 0 ? evolutionData : undefined} />
         </CardContent>
       </Card>
 
@@ -36,7 +155,7 @@ export function DashboardChartGrid() {
           <CardTitle className="text-sm">Distribuição por Tipo</CardTitle>
         </CardHeader>
         <CardContent>
-          <PortfolioTypeDonutChart />
+          <PortfolioTypeDonutChart segments={segments.length > 0 ? segments : undefined} />
         </CardContent>
       </Card>
     </section>

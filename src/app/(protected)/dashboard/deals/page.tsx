@@ -1,11 +1,13 @@
 import Link from "next/link"
-import { Search, Plus, ChevronDown } from "lucide-react"
+import { Search, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { prisma } from "@/lib/db/prisma"
 import { auth } from "@/auth"
 import { calculateProjectViability } from "@/lib/domain/finance/calculateProjectViability"
 import type { ProjectInput } from "@/lib/domain/deals/projectInput"
+import { DealStatusBadge } from "./components/DealStatusSelector"
+import { dealStatuses, type DealStatus } from "@/lib/domain/deals/dealStatus"
 
 type ViabilityStatus = "Viável" | "Margem apertada" | "Inviável"
 
@@ -13,6 +15,7 @@ type DealListItem = {
   id: string
   name: string
   propertyType: string
+  status: string
   purchasePrice: number
   profit: number
   roi: number
@@ -59,6 +62,11 @@ function DealRow({ deal }: { deal: DealListItem }) {
           </span>
         </Link>
       </td>
+      <td className="p-0">
+        <Link href={href} className="block py-4">
+          <DealStatusBadge status={deal.status} />
+        </Link>
+      </td>
       <td className="p-0 text-right">
         <Link href={href} className="block py-4 text-sm text-white hover:text-white/90">
           {formatBRL(deal.purchasePrice)}
@@ -74,11 +82,6 @@ function DealRow({ deal }: { deal: DealListItem }) {
       <td className="p-0 text-right">
         <Link href={href} className="block py-4 text-sm text-white">
           {formatPercent(deal.roi)}
-        </Link>
-      </td>
-      <td className="p-0 text-right">
-        <Link href={href} className="block py-4 text-sm text-white">
-          {formatBRL(deal.capitalNeeded)}
         </Link>
       </td>
       <td className="p-0 text-right">
@@ -133,8 +136,43 @@ function EmptyState() {
   )
 }
 
-export default async function DealsPage() {
+function StatusFilterButton({ 
+  status, 
+  count,
+  isActive,
+  href,
+}: { 
+  status: DealStatus | "Todos"
+  count: number
+  isActive: boolean
+  href: string
+}) {
+  return (
+    <Link
+      href={href}
+      className={`
+        inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors
+        ${isActive 
+          ? "border-[#4F7DFF] bg-[#4F7DFF]/10 text-[#4F7DFF]" 
+          : "border-[#141B29] bg-[#0B0F17] text-[#9AA6BC] hover:bg-[#0B1323] hover:text-white"
+        }
+      `}
+    >
+      {status}
+      <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${isActive ? "bg-[#4F7DFF]/20" : "bg-[#141B29]"}`}>
+        {count}
+      </span>
+    </Link>
+  )
+}
+
+export default async function DealsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>
+}) {
   const session = await auth()
+  const { status: filterStatus } = await searchParams
 
   const items =
     session?.user?.id
@@ -144,7 +182,20 @@ export default async function DealsPage() {
         })
       : []
 
-  const deals: DealListItem[] = items.map((d) => {
+  // Contagem por status
+  const statusCounts: Record<string, number> = {
+    Todos: items.length,
+  }
+  for (const s of dealStatuses) {
+    statusCounts[s] = items.filter(d => d.status === s).length
+  }
+
+  // Filtrar por status se especificado
+  const filteredItems = filterStatus && filterStatus !== "Todos"
+    ? items.filter(d => d.status === filterStatus)
+    : items
+
+  const deals: DealListItem[] = filteredItems.map((d) => {
     const input: ProjectInput = {
       acquisition: {
         purchasePrice: d.purchasePrice,
@@ -177,7 +228,6 @@ export default async function DealsPage() {
 
     const viability = calculateProjectViability(input)
 
-    // Determinar viabilidade baseada nos mesmos critérios da página de detalhes
     const viabilityStatus: ViabilityStatus =
       viability.profit <= 0
         ? "Inviável"
@@ -189,6 +239,7 @@ export default async function DealsPage() {
       id: d.id,
       name: d.propertyName ?? "Sem nome",
       propertyType: d.propertyType ?? "—",
+      status: d.status,
       purchasePrice: d.purchasePrice,
       profit: viability.profitAfterTax,
       roi: viability.roiAfterTax,
@@ -202,6 +253,7 @@ export default async function DealsPage() {
   }
 
   const state = getUiState()
+  const activeFilter = filterStatus || "Todos"
 
   return (
     <>
@@ -221,9 +273,11 @@ export default async function DealsPage() {
       </header>
 
       <div className="px-10 py-6 space-y-6">
+        {/* Filtros */}
         <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
           <CardContent className="py-4">
-            <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-4">
+              {/* Busca */}
               <div className="relative w-full lg:max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7C889E]" />
                 <input
@@ -232,13 +286,26 @@ export default async function DealsPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button variant="outline" className="border-[#141B29] bg-[#0B0F17] hover:bg-[#0B1323] text-[#9AA6BC]">
-                  ROI <ChevronDown className="h-4 w-4 ml-2 text-[#7C889E]" />
-                </Button>
-                <Button variant="outline" className="border-[#141B29] bg-[#0B0F17] hover:bg-[#0B1323] text-[#9AA6BC]">
-                  Risco <ChevronDown className="h-4 w-4 ml-2 text-[#7C889E]" />
-                </Button>
+              {/* Filtros de status */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-[#7C889E] mr-2">Status:</span>
+                <StatusFilterButton
+                  status="Todos"
+                  count={statusCounts["Todos"]}
+                  isActive={activeFilter === "Todos"}
+                  href="/dashboard/deals"
+                />
+                {dealStatuses.map((s) => (
+                  statusCounts[s] > 0 && (
+                    <StatusFilterButton
+                      key={s}
+                      status={s}
+                      count={statusCounts[s]}
+                      isActive={activeFilter === s}
+                      href={`/dashboard/deals?status=${encodeURIComponent(s)}`}
+                    />
+                  )
+                ))}
               </div>
             </div>
           </CardContent>
@@ -248,7 +315,9 @@ export default async function DealsPage() {
           <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">Meus Deals</CardTitle>
+                <CardTitle className="text-sm">
+                  {activeFilter === "Todos" ? "Todos os Deals" : `Deals: ${activeFilter}`}
+                </CardTitle>
                 <div className="text-xs text-[#7C889E]">{deals.length} itens</div>
               </div>
             </CardHeader>
@@ -259,10 +328,10 @@ export default async function DealsPage() {
                     <tr className="border-b border-[#141B29]">
                       <th className="py-3 text-left">Imóvel</th>
                       <th className="py-3 text-left">Tipo</th>
+                      <th className="py-3 text-left">Status</th>
                       <th className="py-3 text-right">Compra</th>
                       <th className="py-3 text-right">Lucro Líquido</th>
                       <th className="py-3 text-right">ROI</th>
-                      <th className="py-3 text-right">Capital Necessário</th>
                       <th className="py-3 text-right">Viabilidade</th>
                       <th className="py-3 w-12" />
                     </tr>
@@ -281,5 +350,3 @@ export default async function DealsPage() {
     </>
   )
 }
-
-

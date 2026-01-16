@@ -78,7 +78,21 @@ model Deal {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
+  statusHistory DealStatusChange[]
+
   @@index([userId, createdAt])
+}
+
+model DealStatusChange {
+  id         String   @id @default(uuid())
+  dealId     String
+  deal       Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  
+  fromStatus String?  // null = status inicial (criação do deal)
+  toStatus   String
+  changedAt  DateTime @default(now())
+  
+  @@index([dealId, changedAt])
 }
 
 model Account {

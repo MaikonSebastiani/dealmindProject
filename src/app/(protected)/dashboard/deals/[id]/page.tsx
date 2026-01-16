@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { prisma } from "@/lib/db/prisma"
 import { auth } from "@/auth"
 import { DeleteDealDialog } from "../components/DeleteDealDialog"
+import { DealStatusSelector } from "../components/DealStatusSelector"
 import { deleteDealAction } from "../actions"
 import { calculateProjectViability } from "@/lib/domain/finance/calculateProjectViability"
 import type { ProjectInput } from "@/lib/domain/deals/projectInput"
@@ -238,7 +239,10 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
               <ChevronRight className="h-3 w-3" />
               <span>Detalhe</span>
             </div>
-            <h1 className="text-xl font-semibold truncate">{deal.propertyName ?? "Deal"}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-semibold truncate">{deal.propertyName ?? "Deal"}</h1>
+              <DealStatusSelector dealId={deal.id} currentStatus={deal.status} />
+            </div>
             <div className="text-sm text-[#7C889E] flex flex-wrap items-center gap-x-3 gap-y-1">
               <span>Compra: <span className="text-white">{formatBRL(projectInput.acquisition.purchasePrice)}</span></span>
               <span className="text-[#141B29]">•</span>

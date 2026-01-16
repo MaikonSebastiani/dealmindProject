@@ -3,16 +3,16 @@ import { hash } from "bcryptjs"
 
 const prisma = new PrismaClient()
 
-// Dados de exemplo de imóveis
+// Dados de exemplo de imóveis com status variados
 const sampleDeals = [
   {
     propertyName: "Apartamento Jardins - SP",
     propertyType: "Apartamento",
     address: "Rua Oscar Freire, 1200 - Jardins, São Paulo/SP",
-    status: "Em análise",
+    status: "Alugado", // Holding - gerando renda passiva
     purchasePrice: 850000,
     acquisitionCosts: 42500,
-    monthlyRent: 0,
+    monthlyRent: 4500, // Renda mensal de aluguel
     monthlyExpenses: 0,
     annualPropertyTax: 0,
     downPaymentPercent: 30,
@@ -44,7 +44,7 @@ const sampleDeals = [
     propertyName: "Casa em Leilão - Alphaville",
     propertyType: "Casa",
     address: "Alameda Grajaú, 450 - Alphaville, Barueri/SP",
-    status: "Em análise",
+    status: "Em reforma", // Recém comprado, em obras
     purchasePrice: 1200000,
     acquisitionCosts: 96000,
     monthlyRent: 0,
@@ -79,7 +79,7 @@ const sampleDeals = [
     propertyName: "Kitnet Centro - RJ",
     propertyType: "Apartamento",
     address: "Rua do Ouvidor, 80 - Centro, Rio de Janeiro/RJ",
-    status: "Em análise",
+    status: "Vendido", // Deal finalizado
     purchasePrice: 180000,
     acquisitionCosts: 9000,
     monthlyRent: 0,
@@ -114,7 +114,7 @@ const sampleDeals = [
     propertyName: "Sobrado Leilão Judicial - Curitiba",
     propertyType: "Casa",
     address: "Rua XV de Novembro, 1500 - Centro, Curitiba/PR",
-    status: "Em análise",
+    status: "Aprovado", // Viabilidade aprovada, negociando
     purchasePrice: 420000,
     acquisitionCosts: 33600,
     monthlyRent: 0,
@@ -149,7 +149,7 @@ const sampleDeals = [
     propertyName: "Cobertura Barra - RJ",
     propertyType: "Apartamento",
     address: "Av. Lúcio Costa, 3200 - Barra da Tijuca, Rio de Janeiro/RJ",
-    status: "Em análise",
+    status: "À venda", // Anunciado no mercado
     purchasePrice: 2500000,
     acquisitionCosts: 125000,
     monthlyRent: 0,
@@ -184,7 +184,7 @@ const sampleDeals = [
     propertyName: "Apartamento Leilão - BH",
     propertyType: "Apartamento",
     address: "Av. Afonso Pena, 2800 - Funcionários, Belo Horizonte/MG",
-    status: "Em análise",
+    status: "Comprado", // Imóvel adquirido
     purchasePrice: 380000,
     acquisitionCosts: 30400,
     monthlyRent: 0,
@@ -219,10 +219,10 @@ const sampleDeals = [
     propertyName: "Studio Pinheiros - SP",
     propertyType: "Apartamento",
     address: "Rua dos Pinheiros, 900 - Pinheiros, São Paulo/SP",
-    status: "Em análise",
+    status: "Alugado", // Holding - gerando renda passiva
     purchasePrice: 320000,
     acquisitionCosts: 16000,
-    monthlyRent: 0,
+    monthlyRent: 2200, // Renda mensal de aluguel
     monthlyExpenses: 0,
     annualPropertyTax: 0,
     downPaymentPercent: 100,
@@ -254,7 +254,7 @@ const sampleDeals = [
     propertyName: "Terreno Leilão - Campinas",
     propertyType: "Lote",
     address: "Rod. D. Pedro I, km 132 - Campinas/SP",
-    status: "Em análise",
+    status: "Arquivado", // Descartado
     purchasePrice: 150000,
     acquisitionCosts: 12000,
     monthlyRent: 0,
@@ -289,7 +289,7 @@ const sampleDeals = [
     propertyName: "Flat Itaim - SP",
     propertyType: "Apartamento",
     address: "Rua João Cachoeira, 350 - Itaim Bibi, São Paulo/SP",
-    status: "Em análise",
+    status: "Em análise", // Em pipeline
     purchasePrice: 480000,
     acquisitionCosts: 24000,
     monthlyRent: 0,
@@ -324,7 +324,7 @@ const sampleDeals = [
     propertyName: "Casa Leilão Extrajudicial - Floripa",
     propertyType: "Casa",
     address: "Rua das Rendeiras, 800 - Lagoa da Conceição, Florianópolis/SC",
-    status: "Em análise",
+    status: "Em análise", // Em pipeline
     purchasePrice: 750000,
     acquisitionCosts: 60000,
     monthlyRent: 0,
@@ -359,10 +359,10 @@ const sampleDeals = [
     propertyName: "Apartamento Vila Madalena - SP",
     propertyType: "Apartamento",
     address: "Rua Harmonia, 250 - Vila Madalena, São Paulo/SP",
-    status: "Em análise",
+    status: "Alugado", // Holding - gerando renda passiva
     purchasePrice: 620000,
     acquisitionCosts: 31000,
-    monthlyRent: 0,
+    monthlyRent: 3200, // Renda mensal de aluguel
     monthlyExpenses: 0,
     annualPropertyTax: 0,
     downPaymentPercent: 25,
@@ -394,7 +394,7 @@ const sampleDeals = [
     propertyName: "Sala Comercial - Paulista",
     propertyType: "Comercial",
     address: "Av. Paulista, 1800 - Bela Vista, São Paulo/SP",
-    status: "Em análise",
+    status: "Em análise", // Em pipeline
     purchasePrice: 950000,
     acquisitionCosts: 47500,
     monthlyRent: 0,

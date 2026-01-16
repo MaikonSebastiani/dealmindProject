@@ -10,6 +10,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 dias
   },
   pages: {
     signIn: '/',
@@ -59,12 +60,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
+        token.email = user.email
       }
       return token
     },
     async session({ session, token }) {
       if (session.user && token.id) {
-        session.user.id = token.id as string
+        // Validar se o usuário ainda existe no banco de dados
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { id: true, name: true, email: true },
+        })
+
+        if (!dbUser) {
+          // Usuário não existe mais - invalidar sessão
+          return { ...session, user: undefined, expires: new Date(0).toISOString() }
+        }
+
+        // Atualizar dados da sessão com dados frescos do banco
+        session.user.id = dbUser.id
+        session.user.name = dbUser.name
+        session.user.email = dbUser.email
       }
       return session
     },
