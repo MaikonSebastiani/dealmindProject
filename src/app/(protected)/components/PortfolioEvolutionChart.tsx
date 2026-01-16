@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useCallback, useRef } from "react"
 
 type DataPoint = {
   month: string // "Jan/24", "Fev/24", etc.
@@ -24,6 +24,7 @@ function formatBRLFull(value: number) {
 
 export function PortfolioEvolutionChart({ data }: { data?: DataPoint[] }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
 
   // Dados de exemplo quando não há dados reais
   const defaultData: DataPoint[] = useMemo(() => {
@@ -90,6 +91,41 @@ export function PortfolioEvolutionChart({ data }: { data?: DataPoint[] }) {
     return lines
   }, [minValue, valueRange, chartHeight])
 
+  // Handler de mouse move para detectar ponto mais próximo
+  const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    if (!svgRef.current || points.length === 0) return
+
+    const svg = svgRef.current
+    const rect = svg.getBoundingClientRect()
+    
+    // Calcular posição do mouse em coordenadas SVG
+    const mouseX = ((e.clientX - rect.left) / rect.width) * width
+
+    // Encontrar o ponto mais próximo no eixo X
+    let closestIndex = 0
+    let closestDistance = Infinity
+
+    for (let i = 0; i < points.length; i++) {
+      const distance = Math.abs(points[i].x - mouseX)
+      if (distance < closestDistance) {
+        closestDistance = distance
+        closestIndex = i
+      }
+    }
+
+    // Só mostrar tooltip se estiver próximo o suficiente (dentro da área do gráfico)
+    const threshold = chartWidth / (points.length - 1 || 1) / 2 + 20
+    if (closestDistance <= threshold && mouseX >= padding.left - 10 && mouseX <= width - padding.right + 10) {
+      setHoveredIndex(closestIndex)
+    } else {
+      setHoveredIndex(null)
+    }
+  }, [points, chartWidth, width])
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredIndex(null)
+  }, [])
+
   const hoveredPoint = hoveredIndex !== null ? points[hoveredIndex] : null
 
   return (
@@ -102,14 +138,20 @@ export function PortfolioEvolutionChart({ data }: { data?: DataPoint[] }) {
 
       {/* Grid de fundo */}
       <div 
-        className="absolute inset-0 opacity-30" 
+        className="absolute inset-0 opacity-30 pointer-events-none" 
         style={{ 
           backgroundImage: "linear-gradient(#141B29 1px, transparent 1px), linear-gradient(90deg, #141B29 1px, transparent 1px)", 
           backgroundSize: "48px 48px" 
         }} 
       />
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="absolute inset-0 h-full w-full">
+      <svg 
+        ref={svgRef}
+        viewBox={`0 0 ${width} ${height}`} 
+        className="absolute inset-0 h-full w-full cursor-crosshair"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
         {/* Linhas do grid Y */}
         {yGridLines.map((line, i) => (
           <g key={i}>
@@ -150,30 +192,32 @@ export function PortfolioEvolutionChart({ data }: { data?: DataPoint[] }) {
           strokeLinejoin="round"
         />
 
-        {/* Pontos interativos */}
+        {/* Linha vertical de hover */}
+        {hoveredPoint && (
+          <line
+            x1={hoveredPoint.x}
+            y1={padding.top}
+            x2={hoveredPoint.x}
+            y2={padding.top + chartHeight}
+            stroke="#4F7DFF"
+            strokeWidth="1"
+            strokeDasharray="4 4"
+            opacity="0.5"
+          />
+        )}
+
+        {/* Pontos */}
         {points.map((p, i) => (
-          <g key={i}>
-            {/* Área de hover invisível maior */}
-            <circle
-              cx={p.x}
-              cy={p.y}
-              r="15"
-              fill="transparent"
-              style={{ cursor: "pointer" }}
-              onMouseEnter={() => setHoveredIndex(i)}
-              onMouseLeave={() => setHoveredIndex(null)}
-            />
-            {/* Ponto visível */}
-            <circle
-              cx={p.x}
-              cy={p.y}
-              r={hoveredIndex === i ? 6 : 4}
-              fill={hoveredIndex === i ? "#4F7DFF" : "#0B0F17"}
-              stroke="#4F7DFF"
-              strokeWidth="2"
-              className="transition-all"
-            />
-          </g>
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r={hoveredIndex === i ? 7 : 4}
+            fill={hoveredIndex === i ? "#4F7DFF" : "#0B0F17"}
+            stroke="#4F7DFF"
+            strokeWidth="2"
+            className="transition-all duration-150"
+          />
         ))}
 
         {/* Labels do eixo X */}
@@ -181,12 +225,13 @@ export function PortfolioEvolutionChart({ data }: { data?: DataPoint[] }) {
           // Mostrar apenas alguns labels para não ficar poluído
           (points.length <= 6 || i % Math.ceil(points.length / 6) === 0 || i === points.length - 1) && (
             <text
-              key={i}
+              key={`label-${i}`}
               x={p.x}
               y={height - 8}
-              fill="#7C889E"
+              fill={hoveredIndex === i ? "#4F7DFF" : "#7C889E"}
               fontSize="10"
               textAnchor="middle"
+              className="transition-colors"
             >
               {p.month}
             </text>
@@ -205,13 +250,13 @@ export function PortfolioEvolutionChart({ data }: { data?: DataPoint[] }) {
       {/* Tooltip */}
       {hoveredPoint && (
         <div
-          className="absolute z-20 pointer-events-none transform -translate-x-1/2 -translate-y-full"
+          className="absolute z-20 pointer-events-none transform -translate-x-1/2"
           style={{
             left: `${(hoveredPoint.x / width) * 100}%`,
-            top: `${(hoveredPoint.y / height) * 100}%`,
+            top: "8px",
           }}
         >
-          <div className="rounded-xl border border-[#141B29] bg-[#0B0F17] px-3 py-2 shadow-xl mb-2">
+          <div className="rounded-xl border border-[#141B29] bg-[#0B0F17]/95 backdrop-blur px-3 py-2 shadow-xl">
             <div className="text-xs text-[#7C889E]">{hoveredPoint.label}</div>
             <div className="text-sm font-semibold text-[#4F7DFF]">
               {formatBRLFull(hoveredPoint.value)}
@@ -222,4 +267,3 @@ export function PortfolioEvolutionChart({ data }: { data?: DataPoint[] }) {
     </div>
   )
 }
-
