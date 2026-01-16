@@ -208,7 +208,7 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
   const remainingBalanceAtSale = viability.financing?.remainingBalanceAtSale ?? 0
 
   const viabilityStatus: "Viável" | "Margem apertada" | "Inviável" =
-    viability.profit <= 0 ? "Inviável" : viability.roiTotal < 0.1 ? "Margem apertada" : "Viável"
+    deal.roi <= 0 ? "Inviável" : deal.roi < 0.1 ? "Margem apertada" : "Viável"
 
   const viabilityDetail =
     viabilityStatus === "Inviável"
@@ -279,7 +279,7 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
             value={formatBRL(viability.profit)}
             tone={viability.profit < 0 ? "bad" : "good"}
           />
-          <DealKpiCard label="ROI" value={formatPercent(viability.roiAfterTax)} />
+          <DealKpiCard label="ROI" value={formatPercent(deal.roi)} />
           <DealKpiCard label="Capital Necessário" value={formatBRL(viability.initialInvestment)} />
         </section>
 

@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { prisma } from "@/lib/db/prisma"
 import { auth } from "@/auth"
-import { calculateProjectViability } from "@/lib/domain/finance/calculateProjectViability"
-import type { ProjectInput } from "@/lib/domain/deals/projectInput"
 import { DealStatusBadge } from "./components/DealStatusSelector"
 import { dealStatuses, type DealStatus } from "@/lib/domain/deals/dealStatus"
+
+// Forçar revalidação a cada requisição (sem cache)
+export const dynamic = "force-dynamic"
 
 type ViabilityStatus = "Viável" | "Margem apertada" | "Inviável"
 
@@ -195,45 +196,19 @@ export default async function DealsPage({
     ? items.filter(d => d.status === filterStatus)
     : items
 
+  // Usar ROI já calculado do banco para consistência
   const deals: DealListItem[] = filteredItems.map((d) => {
-    const input: ProjectInput = {
-      acquisition: {
-        purchasePrice: d.purchasePrice,
-        downPaymentPercent: d.downPaymentPercent ?? 0,
-        auctioneerFeePercent: d.auctioneerFeePercent ?? undefined,
-        itbiPercent: d.itbiPercent ?? 0,
-        registryCost: d.registryCost ?? 0,
-      },
-      financing: d.financingEnabled
-        ? {
-            enabled: true,
-            interestRateAnnual: d.interestRateAnnual ?? 0,
-            termMonths: d.termMonths ?? 0,
-            amortizationType: (d.amortizationType === "SAC" ? "SAC" : "PRICE") as any,
-          }
-        : undefined,
-      liabilities: {
-        iptuDebt: d.iptuDebt ?? 0,
-        condoDebt: d.condoDebt ?? 0,
-      },
-      operationAndExit: {
-        resalePrice: d.resalePrice ?? 0,
-        resaleDiscountPercent: d.resaleDiscountPercent ?? 0,
-        brokerFeePercent: d.brokerFeePercent ?? 0,
-        monthlyCondoFee: d.monthlyCondoFee ?? 0,
-        monthlyIptu: d.monthlyIptu ?? 0,
-        expectedSaleMonths: d.expectedSaleMonths ?? 12,
-      },
-    }
-
-    const viability = calculateProjectViability(input)
-
+    // Viabilidade baseada no ROI salvo
     const viabilityStatus: ViabilityStatus =
-      viability.profit <= 0
+      d.roi <= 0
         ? "Inviável"
-        : viability.roiTotal < 0.1
+        : d.roi < 0.1
           ? "Margem apertada"
           : "Viável"
+
+    // Lucro = ROI * Investimento Total
+    const totalInvestment = d.purchasePrice + d.acquisitionCosts
+    const profit = d.roi * totalInvestment
 
     return {
       id: d.id,
@@ -241,9 +216,9 @@ export default async function DealsPage({
       propertyType: d.propertyType ?? "—",
       status: d.status,
       purchasePrice: d.purchasePrice,
-      profit: viability.profitAfterTax,
-      roi: viability.roiAfterTax,
-      capitalNeeded: viability.initialInvestment,
+      profit: profit,
+      roi: d.roi, // Usar ROI do banco diretamente
+      capitalNeeded: totalInvestment,
       viability: viabilityStatus,
     }
   })

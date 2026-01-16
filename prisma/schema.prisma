@@ -51,6 +51,8 @@ model Deal {
   iptuDebt                Float?
   condoDebt               Float?
 
+  renovationCosts         Float?   // Custos de reforma
+
   resalePrice             Float?
   resaleDiscountPercent   Float?
   brokerFeePercent        Float?

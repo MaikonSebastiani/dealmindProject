@@ -18,6 +18,9 @@ export type ProjectInput = {
     iptuDebt: number
     condoDebt: number
   }
+  renovation: {
+    costs: number
+  }
   operationAndExit: {
     resalePrice: number
     resaleDiscountPercent: number

@@ -73,6 +73,8 @@ export async function createDealAction(formData: FormData) {
       iptuDebt: input.liabilities.iptuDebt,
       condoDebt: input.liabilities.condoDebt,
 
+      renovationCosts: input.renovation?.costs ?? 0,
+
       resalePrice: input.operationAndExit.resalePrice,
       resaleDiscountPercent: input.operationAndExit.resaleDiscountPercent,
       brokerFeePercent: input.operationAndExit.brokerFeePercent,
@@ -82,7 +84,7 @@ export async function createDealAction(formData: FormData) {
 
       monthlyCashFlow: 0,
       annualCashFlow: 0,
-      roi: viability.roiTotal,
+      roi: viability.roiAfterTax,
       capRate: 0,
       paybackYears: 0,
       riskNegativeCashFlow: viability.risk.negativeProfit,
@@ -107,6 +109,7 @@ export async function createDealAction(formData: FormData) {
   })
 
   revalidatePath("/dashboard/deals")
+  revalidatePath("/dashboard")
   redirect(`/dashboard/deals/${deal.id}`)
 }
 
@@ -164,6 +167,8 @@ export async function updateDealAction(dealId: string, formData: FormData) {
       iptuDebt: input.liabilities.iptuDebt,
       condoDebt: input.liabilities.condoDebt,
 
+      renovationCosts: input.renovation?.costs ?? 0,
+
       resalePrice: input.operationAndExit.resalePrice,
       resaleDiscountPercent: input.operationAndExit.resaleDiscountPercent,
       brokerFeePercent: input.operationAndExit.brokerFeePercent,
@@ -173,7 +178,7 @@ export async function updateDealAction(dealId: string, formData: FormData) {
 
       monthlyCashFlow: 0,
       annualCashFlow: 0,
-      roi: viability.roiTotal,
+      roi: viability.roiAfterTax,
       capRate: 0,
       paybackYears: 0,
       riskNegativeCashFlow: viability.risk.negativeProfit,
@@ -190,6 +195,7 @@ export async function updateDealAction(dealId: string, formData: FormData) {
 
   revalidatePath("/dashboard/deals")
   revalidatePath(`/dashboard/deals/${dealId}`)
+  revalidatePath("/dashboard")
   redirect(`/dashboard/deals/${dealId}`)
 }
 
@@ -202,6 +208,7 @@ export async function deleteDealAction(dealId: string) {
   })
 
   revalidatePath("/dashboard/deals")
+  revalidatePath("/dashboard")
   redirect("/dashboard/deals")
 }
 

@@ -12,6 +12,15 @@ const nextConfig = {
       bodySizeLimit: "10mb",
     },
   },
+  // Desabilitar cache durante desenvolvimento
+  headers: async () => [
+    {
+      source: "/:path*",
+      headers: [
+        { key: "Cache-Control", value: "no-store, must-revalidate" },
+      ],
+    },
+  ],
 };
 
 module.exports = nextConfig;

@@ -35,12 +35,15 @@ export function calculateProjectViability(input: ProjectInput) {
     ? (purchasePrice * input.acquisition.auctioneerFeePercent) / 100
     : 0
 
+  const renovationCosts = input.renovation?.costs ?? 0
+
   const acquisitionCosts =
     itbi +
     input.acquisition.registryCost +
     auctioneerFee +
     input.liabilities.iptuDebt +
-    input.liabilities.condoDebt
+    input.liabilities.condoDebt +
+    renovationCosts
 
   const initialInvestment = downPayment + acquisitionCosts
 
@@ -116,6 +119,7 @@ export function calculateProjectViability(input: ProjectInput) {
   return {
     initialInvestment,
     acquisitionCosts,
+    renovationCosts,
     operatingCosts,
     saleNet,
     saleNetAfterLoan,

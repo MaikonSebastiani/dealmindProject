@@ -5,11 +5,33 @@ import { KpiCard } from "../components/KpiCard"
 import { DashboardChartGrid } from "../components/DashboardChartGrid"
 import { TransactionsPanel } from "../components/TransactionsPanel"
 import { PortfolioTable } from "../components/PortfolioTable"
-import { Banknote, Building2, TrendingUp, Wallet, Search, Home, BadgeCheck, Key } from "lucide-react"
-import { activeStatuses, pipelineStatuses } from "@/lib/domain/deals/dealStatus"
+import { Banknote, Building2, TrendingUp, Wallet, Search, Home, BadgeCheck, Key, Percent } from "lucide-react"
+import { activeStatuses, pipelineStatuses, type DealStatus } from "@/lib/domain/deals/dealStatus"
+
+// Forçar revalidação a cada requisição (sem cache)
+export const dynamic = "force-dynamic"
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
+}
+
+// Calcular lucro de um deal vendido
+function calculateDealProfit(deal: {
+  purchasePrice: number
+  resalePrice: number | null
+  acquisitionCosts: number
+  monthlyCondoFee: number | null
+  monthlyIptu: number | null
+  brokerFeePercent: number | null
+  expectedSaleMonths: number
+}): number {
+  const resalePrice = deal.resalePrice ?? 0
+  if (resalePrice <= 0) return 0
+
+  const holdingCosts = ((deal.monthlyCondoFee ?? 0) + (deal.monthlyIptu ?? 0)) * deal.expectedSaleMonths
+  const brokerFee = (deal.brokerFeePercent ?? 0) / 100 * resalePrice
+
+  return Math.max(0, resalePrice - deal.purchasePrice - deal.acquisitionCosts - holdingCosts - brokerFee)
 }
 
 export default async function DashboardPage() {
@@ -23,16 +45,29 @@ export default async function DashboardPage() {
   let soldCount = 0 // Vendido
   let rentingCount = 0 // Alugado
   let totalRentIncome = 0 // Soma do aluguel mensal dos "Alugados"
-  let averageRoi = 0
   let totalDeals = 0
+
+  // Rentabilidade
+  let rentabilidadeAnual = 0
+  let rentabilidadeTotal = 0
+  let mesesInvestindo = 0
+
+  // CDI aproximado (taxa anual)
+  const CDI_ANUAL = 0.1215 // 12.15% a.a.
 
   if (session?.user?.id) {
     const deals = await prisma.deal.findMany({
       where: { userId: session.user.id },
       select: {
+        id: true,
         status: true,
         purchasePrice: true,
         resalePrice: true,
+        acquisitionCosts: true,
+        monthlyCondoFee: true,
+        monthlyIptu: true,
+        brokerFeePercent: true,
+        expectedSaleMonths: true,
         roi: true,
         monthlyRent: true,
       },
@@ -41,12 +76,12 @@ export default async function DashboardPage() {
     totalDeals = deals.length
 
     // Pipeline: Em análise + Aprovado
-    const pipelineDeals = deals.filter(d => pipelineStatuses.includes(d.status as any))
+    const pipelineDeals = deals.filter(d => pipelineStatuses.includes(d.status as DealStatus))
     pipelineCount = pipelineDeals.length
     pipelineValue = pipelineDeals.reduce((acc, d) => acc + d.purchasePrice, 0)
 
     // Portfólio Ativo: Comprado + Em reforma + Alugado + À venda
-    const portfolioDeals = deals.filter(d => activeStatuses.includes(d.status as any))
+    const portfolioDeals = deals.filter(d => activeStatuses.includes(d.status as DealStatus))
     portfolioCount = portfolioDeals.length
     portfolioValue = portfolioDeals.reduce((acc, d) => acc + d.purchasePrice, 0)
 
@@ -59,10 +94,70 @@ export default async function DashboardPage() {
     rentingCount = rentingDeals.length
     totalRentIncome = rentingDeals.reduce((acc, d) => acc + (d.monthlyRent ?? 0), 0)
 
-    // ROI médio (considerando todos os deals)
-    averageRoi = totalDeals > 0
-      ? deals.reduce((acc, d) => acc + d.roi, 0) / totalDeals
-      : 0
+    // ===== Calcular Rentabilidade =====
+    // Buscar primeira compra para determinar tempo de investimento
+    const primeiraCompra = await prisma.dealStatusChange.findFirst({
+      where: {
+        deal: { userId: session.user.id },
+        toStatus: "Comprado",
+      },
+      orderBy: { changedAt: "asc" },
+    })
+
+    if (primeiraCompra) {
+      const dataInicio = primeiraCompra.changedAt
+      const agora = new Date()
+      mesesInvestindo = Math.max(1, Math.round(
+        (agora.getTime() - dataInicio.getTime()) / (1000 * 60 * 60 * 24 * 30)
+      ))
+
+      // Calcular lucro total realizado (vendas)
+      const lucroRealizado = soldDeals.reduce((acc, d) => acc + calculateDealProfit(d), 0)
+
+      // Capital inicial = primeiro investimento (aproximação: soma das compras dos vendidos)
+      // Para simplificar: usamos o valor do primeiro deal comprado
+      const primeiroDeal = await prisma.deal.findFirst({
+        where: { 
+          userId: session.user.id,
+          status: { in: ["Comprado", "Em reforma", "Alugado", "À venda", "Vendido"] }
+        },
+        orderBy: { createdAt: "asc" },
+        select: { purchasePrice: true, acquisitionCosts: true },
+      })
+
+      // Estimar capital inicial baseado no primeiro período
+      // Buscar todas as compras do primeiro mês
+      const comprasIniciais = await prisma.dealStatusChange.findMany({
+        where: {
+          deal: { userId: session.user.id },
+          toStatus: "Comprado",
+          changedAt: {
+            lte: new Date(dataInicio.getTime() + 30 * 24 * 60 * 60 * 1000), // +30 dias
+          },
+        },
+        include: {
+          deal: { select: { purchasePrice: true, acquisitionCosts: true } },
+        },
+      })
+
+      const capitalInicial = comprasIniciais.reduce(
+        (acc, c) => acc + c.deal.purchasePrice + c.deal.acquisitionCosts, 
+        0
+      ) || primeiroDeal?.purchasePrice || 0
+
+      if (capitalInicial > 0) {
+        // Patrimônio atual = carteira + lucros realizados
+        const patrimonioAtual = portfolioValue + lucroRealizado
+
+        // Rentabilidade total
+        rentabilidadeTotal = (patrimonioAtual / capitalInicial) - 1
+
+        // Rentabilidade anualizada: ((1 + total)^(12/meses)) - 1
+        if (mesesInvestindo >= 1) {
+          rentabilidadeAnual = Math.pow(1 + rentabilidadeTotal, 12 / mesesInvestindo) - 1
+        }
+      }
+    }
   }
 
   return (
@@ -116,10 +211,15 @@ export default async function DashboardPage() {
             icon={Banknote}
           />
           <KpiCard
-            title="ROI Médio"
-            value={`${(averageRoi * 100).toFixed(1)}%`}
-            delta={averageRoi >= 0.15 ? "Bom" : averageRoi >= 0.10 ? "Médio" : "Baixo"}
-            icon={TrendingUp}
+            title="Rentabilidade"
+            value={`${(rentabilidadeAnual * 100).toFixed(0)}% a.a.`}
+            delta={
+              rentabilidadeAnual > 0 
+                ? `+${((rentabilidadeAnual - CDI_ANUAL) * 100).toFixed(0)}% vs CDI`
+                : mesesInvestindo > 0 ? `${mesesInvestindo} meses` : "Sem histórico"
+            }
+            icon={Percent}
+            highlight={rentabilidadeAnual > CDI_ANUAL}
           />
           <KpiCard
             title="Renda Passiva"

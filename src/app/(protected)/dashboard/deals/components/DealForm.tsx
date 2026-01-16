@@ -312,6 +312,9 @@ export function DealForm(props: {
         iptuDebt: "0,00",
         condoDebt: "0,00",
       },
+      renovation: {
+        costs: "0,00",
+      },
       operationAndExit: {
         resalePrice: "",
         resaleDiscountPercent: "0",
@@ -673,6 +676,27 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.liabilities?.condoDebt?.message as string | undefined}
+                    className="md:col-span-6"
+                  />
+                )}
+              />
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Reforma">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              <Controller
+                name="renovation.costs"
+                control={control}
+                render={({ field }) => (
+                  <MoneyField
+                    label="Custo de reforma"
+                    name="renovationCosts"
+                    required
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={errors.renovation?.costs?.message as string | undefined}
                     className="md:col-span-6"
                   />
                 )}

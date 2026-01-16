@@ -73,6 +73,9 @@ export const dealFormSchema = z
       iptuDebt: moneyNonNegative,
       condoDebt: moneyNonNegative,
     }),
+    renovation: z.object({
+      costs: moneyNonNegative,
+    }),
     operationAndExit: z.object({
       resalePrice: moneyRequiredPositive,
       resaleDiscountPercent: percentRequired,

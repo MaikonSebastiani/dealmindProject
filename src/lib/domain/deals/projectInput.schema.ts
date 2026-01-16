@@ -58,6 +58,9 @@ export const projectInputFormSchema = z.object({
     iptuDebt: money,
     condoDebt: money,
   }),
+  renovation: z.object({
+    costs: money,
+  }),
   operationAndExit: z.object({
     resalePrice: moneyRequiredPositive,
     resaleDiscountPercent: percent,
@@ -93,6 +96,9 @@ export function toProjectInput(form: ProjectInputFromForm): ProjectInput {
       iptuDebt: form.liabilities.iptuDebt,
       condoDebt: form.liabilities.condoDebt,
     },
+    renovation: {
+      costs: form.renovation.costs,
+    },
     operationAndExit: {
       resalePrice: form.operationAndExit.resalePrice,
       resaleDiscountPercent: form.operationAndExit.resaleDiscountPercent,
@@ -124,6 +130,9 @@ export const projectInputApiSchema = z.object({
     iptuDebt: z.number().min(0),
     condoDebt: z.number().min(0),
   }),
+  renovation: z.object({
+    costs: z.number().min(0),
+  }).optional(),
   operationAndExit: z.object({
     resalePrice: z.number().positive(),
     resaleDiscountPercent: z.number().min(0),
@@ -159,6 +168,9 @@ export function toProjectInputFromApi(api: ProjectInputFromApi): ProjectInput {
     liabilities: {
       iptuDebt: api.liabilities.iptuDebt,
       condoDebt: api.liabilities.condoDebt,
+    },
+    renovation: {
+      costs: api.renovation?.costs ?? 0,
     },
     operationAndExit: {
       resalePrice: api.operationAndExit.resalePrice,
