@@ -40,6 +40,7 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
 
   const defaultValues = {
     propertyName: deal.propertyName ?? "",
+    address: deal.address ?? "",
     propertyType: getPropertyType(deal.propertyType),
     acquisition: {
       purchasePrice: money(deal.purchasePrice),

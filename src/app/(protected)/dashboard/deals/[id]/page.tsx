@@ -170,6 +170,9 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
       iptuDebt: deal.iptuDebt ?? 0,
       condoDebt: deal.condoDebt ?? 0,
     },
+    renovation: {
+      costs: deal.renovationCosts ?? 0,
+    },
     operationAndExit: {
       resalePrice: deal.resalePrice ?? 0,
       resaleDiscountPercent: deal.resaleDiscountPercent ?? 0,
@@ -229,16 +232,16 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
               <ChevronRight className="h-3 w-3" />
               <span>Detalhe</span>
             </div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-semibold truncate">{deal.propertyName ?? "Deal"}</h1>
+            <div className="flex items-center gap-4 mt-1 mb-4">
+              <h1 className="text-2xl font-semibold truncate">{deal.propertyName ?? "Deal"}</h1>
               <DealStatusSelector dealId={deal.id} currentStatus={deal.status} />
             </div>
-            <div className="text-sm text-[#7C889E] flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span>Compra: <span className="text-white">{formatBRL(projectInput.acquisition.purchasePrice)}</span></span>
-              <span className="text-[#141B29]">•</span>
-              <span>Venda: <span className="text-white">{formatBRL(projectInput.operationAndExit.resalePrice)}</span></span>
-              <span className="text-[#141B29]">•</span>
-              <span>Venda estimada em <span className="text-white">{formatMonthsLabel(expectedSaleMonths)}</span></span>
+            <div className="text-sm text-[#7C889E] flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+              <span>Compra: <span className="text-white font-medium">{formatBRL(projectInput.acquisition.purchasePrice)}</span></span>
+              <span className="text-[#2D3748]">•</span>
+              <span>Venda: <span className="text-white font-medium">{formatBRL(projectInput.operationAndExit.resalePrice)}</span></span>
+              <span className="text-[#2D3748]">•</span>
+              <span>Venda estimada em <span className="text-white font-medium">{formatMonthsLabel(expectedSaleMonths)}</span></span>
             </div>
           </div>
 

@@ -22,6 +22,7 @@ function getProjectPayload(formData: FormData) {
   return {
     input: toProjectInput(parsed),
     propertyName: parsed.propertyName,
+    address: parsed.address,
     propertyType: parsed.propertyType,
   }
 }
@@ -43,7 +44,7 @@ export async function createDealAction(formData: FormData) {
   const session = await auth()
   if (!session?.user?.id) redirect("/?callbackUrl=/dashboard")
 
-  const { input, propertyName, propertyType } = getProjectPayload(formData)
+  const { input, propertyName, address, propertyType } = getProjectPayload(formData)
   const viability = calculateProjectViability(input)
 
   // Processar arquivos
@@ -57,6 +58,7 @@ export async function createDealAction(formData: FormData) {
       userId: session.user.id,
       status: initialStatus,
       propertyName,
+      address,
       propertyType,
 
       purchasePrice: input.acquisition.purchasePrice,
@@ -122,7 +124,7 @@ export async function updateDealAction(dealId: string, formData: FormData) {
   const session = await auth()
   if (!session?.user?.id) redirect("/?callbackUrl=/dashboard")
 
-  const { input, propertyName, propertyType } = getProjectPayload(formData)
+  const { input, propertyName, address, propertyType } = getProjectPayload(formData)
   const viability = calculateProjectViability(input)
 
   // Processar arquivos
@@ -156,6 +158,7 @@ export async function updateDealAction(dealId: string, formData: FormData) {
     where: { id: dealId, userId: session.user.id },
     data: {
       propertyName,
+      address,
       propertyType,
     purchasePrice: input.acquisition.purchasePrice,
     acquisitionCosts: viability.acquisitionCosts,

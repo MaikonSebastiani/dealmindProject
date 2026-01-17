@@ -188,9 +188,9 @@ export default async function DashboardPage() {
             icon={Key}
           />
           <KpiCard
-            title="Realizados"
+            title="Vendidos"
             value={String(soldCount)}
-            delta={soldCount > 0 ? `${soldCount} vendido(s)` : "Nenhum vendido"}
+            delta={"Imóveis vendidos"}
             icon={BadgeCheck}
           />
         </section>
@@ -198,7 +198,7 @@ export default async function DashboardPage() {
         {/* KPIs secundários */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <KpiCard
-            title="Total de Deals"
+            title="Total de Imóveis"
             value={String(totalDeals)}
             delta="Todos os status"
             icon={Building2}

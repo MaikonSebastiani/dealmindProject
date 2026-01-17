@@ -295,6 +295,7 @@ export function DealForm(props: {
     mode: "onBlur",
     defaultValues: props.defaultValues ?? {
       propertyName: "",
+      address: "",
       propertyType: "Apartamento",
       acquisition: {
         purchasePrice: "",
@@ -387,19 +388,36 @@ export function DealForm(props: {
                 name="propertyName"
                 control={control}
                 render={({ field }) => (
-                  <div className="col-span-2 md:col-span-6">
+                  <div className="col-span-2 md:col-span-4">
                     <label htmlFor="propertyName" className="text-sm text-[#9AA6BC]">Nome do imóvel</label>
                     <Input
                       id="propertyName"
                       value={field.value}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
-                      placeholder="Ex: Apartamento Centro, Casa Praia..."
+                      placeholder="Ex: Apt Centro, Casa Praia..."
                       className="h-10 bg-[#05060B] border-[#141B29] text-white placeholder-[#7C889E] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-[#2D5BFF]"
                     />
                     {errors.propertyName?.message && (
                       <div className="mt-1 text-xs text-rose-400">{String(errors.propertyName.message)}</div>
                     )}
+                  </div>
+                )}
+              />
+              <Controller
+                name="address"
+                control={control}
+                render={({ field }) => (
+                  <div className="col-span-2 md:col-span-6">
+                    <label htmlFor="address" className="text-sm text-[#9AA6BC]">Endereço</label>
+                    <Input
+                      id="address"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      placeholder="Rua, número, bairro, cidade..."
+                      className="h-10 bg-[#05060B] border-[#141B29] text-white placeholder-[#7C889E] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-[#2D5BFF]"
+                    />
                   </div>
                 )}
               />

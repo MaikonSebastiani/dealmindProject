@@ -215,7 +215,7 @@ export async function DashboardChartGrid() {
 
         <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Distribuição por Tipo</CardTitle>
+            <CardTitle className="text-sm">Distribuição por Tipo de Imóvel</CardTitle>
           </CardHeader>
           <CardContent>
             <PortfolioTypeDonutChart segments={segments.length > 0 ? segments : undefined} />
