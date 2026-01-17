@@ -54,19 +54,15 @@ export class DueDiligenceService {
         // Busca nos principais tribunais de SP
         const courts: CourtCode[] = ["tjsp", "trf3", "trt2", "trt15"]
         
-        if (input.debtorDocument) {
-          lawsuits = await (this.datajud as DataJudProvider).searchMultipleCourts(
-            input.debtorDocument,
-            undefined,
-            courts
-          )
-        } else if (input.debtorName) {
-          lawsuits = await (this.datajud as DataJudProvider).searchMultipleCourts(
-            undefined,
-            input.debtorName,
-            courts
-          )
-        }
+        console.log(`[DueDiligence] Buscando por CPF: ${input.debtorDocument || "N/A"} e Nome: ${input.debtorName}`)
+        
+        // IMPORTANTE: Busca por CPF E por NOME simultaneamente para maximizar resultados
+        // A API DataJud nem sempre tem o CPF indexado corretamente
+        lawsuits = await (this.datajud as DataJudProvider).searchMultipleCourts(
+          input.debtorDocument, // CPF (pode ser undefined)
+          input.debtorName,     // Nome (sempre presente)
+          courts
+        )
         
         sources.push(...courts.map(c => `DataJud (${c.toUpperCase()})`))
       }

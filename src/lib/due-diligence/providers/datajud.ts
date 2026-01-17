@@ -122,7 +122,7 @@ export class DataJudProvider {
   }
 
   /**
-   * Busca em múltiplos tribunais (principais)
+   * Busca em múltiplos tribunais por CPF E por NOME (deduplicado)
    */
   async searchMultipleCourts(
     document?: string,
@@ -130,29 +130,57 @@ export class DataJudProvider {
     courts: CourtCode[] = ["tjsp", "trf3", "trt2"]
   ): Promise<LawsuitInfo[]> {
     const allResults: LawsuitInfo[] = []
+    const seenProcessNumbers = new Set<string>()
 
     for (const court of courts) {
-      let response: DataJudResponse
-
+      console.log(`[DataJud] Consultando ${court.toUpperCase()}...`)
+      
+      // 1. Busca por CPF/CNPJ (se disponível)
       if (document) {
-        response = await this.searchByDocument(document, court, 30)
-      } else if (name) {
-        response = await this.searchByName(name, court, 30)
-      } else {
-        continue
+        try {
+          const byDoc = await this.searchByDocument(document, court, 30)
+          if (byDoc.hits?.hits) {
+            console.log(`[DataJud] ${court.toUpperCase()} - ${byDoc.hits.hits.length} processos por CPF`)
+            for (const hit of byDoc.hits.hits) {
+              const normalized = this.normalizeProcess(hit._source, court)
+              if (!seenProcessNumbers.has(normalized.number)) {
+                seenProcessNumbers.add(normalized.number)
+                allResults.push(normalized)
+              }
+            }
+          }
+        } catch (e) {
+          console.error(`[DataJud] Erro busca por CPF em ${court}:`, e)
+        }
+        
+        // Pequeno delay entre requisições
+        await new Promise(resolve => setTimeout(resolve, 200))
       }
 
-      if (response.hits?.hits) {
-        const normalized = response.hits.hits.map(hit => 
-          this.normalizeProcess(hit._source, court)
-        )
-        allResults.push(...normalized)
+      // 2. Busca por NOME (sempre, pois CPF pode não estar indexado)
+      if (name) {
+        try {
+          const byName = await this.searchByName(name, court, 30)
+          if (byName.hits?.hits) {
+            console.log(`[DataJud] ${court.toUpperCase()} - ${byName.hits.hits.length} processos por NOME`)
+            for (const hit of byName.hits.hits) {
+              const normalized = this.normalizeProcess(hit._source, court)
+              // Só adiciona se não for duplicata
+              if (!seenProcessNumbers.has(normalized.number)) {
+                seenProcessNumbers.add(normalized.number)
+                allResults.push(normalized)
+              }
+            }
+          }
+        } catch (e) {
+          console.error(`[DataJud] Erro busca por nome em ${court}:`, e)
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 200))
       }
-
-      // Pequeno delay entre requisições para não sobrecarregar
-      await new Promise(resolve => setTimeout(resolve, 200))
     }
 
+    console.log(`[DataJud] Total: ${allResults.length} processos únicos encontrados`)
     return allResults
   }
 
