@@ -1,11 +1,11 @@
 /**
  * Serviço principal de Due Diligence
  * 
- * Coordena a busca de processos judiciais e análise por IA
+ * Usa API do Escavador para busca nacional de processos judiciais
  */
 
 import { createAIVisionClient } from "@/lib/ai/clients"
-import { DataJudProvider, DataJudMockProvider, type CourtCode } from "./providers/datajud"
+import { EscavadorProvider, EscavadorMockProvider } from "./providers/escavador"
 import { DUE_DILIGENCE_SYSTEM, buildDueDiligencePrompt } from "./prompts"
 import type {
   DueDiligenceInput,
@@ -15,20 +15,20 @@ import type {
 } from "./types"
 
 export class DueDiligenceService {
-  private datajud: DataJudProvider | DataJudMockProvider
+  private escavador: EscavadorProvider | EscavadorMockProvider
   private useMock: boolean
 
   constructor() {
-    const apiKey = process.env.DATAJUD_API_KEY
+    const apiKey = process.env.ESCAVADOR_API_KEY
 
     if (apiKey) {
-      this.datajud = new DataJudProvider(apiKey)
+      this.escavador = new EscavadorProvider(apiKey)
       this.useMock = false
-      console.log("[DueDiligence] Usando API DataJud real")
+      console.log("[DueDiligence] Usando API Escavador")
     } else {
-      this.datajud = new DataJudMockProvider()
+      this.escavador = new EscavadorMockProvider()
       this.useMock = true
-      console.log("[DueDiligence] Usando mock (sem DATAJUD_API_KEY)")
+      console.log("[DueDiligence] Usando mock (sem ESCAVADOR_API_KEY)")
     }
   }
 
@@ -43,41 +43,29 @@ export class DueDiligenceService {
     const errors: string[] = []
     let lawsuits: LawsuitInfo[] = []
 
-    // 1. Buscar processos judiciais
+    // 1. Buscar processos judiciais no Escavador
     try {
-      if (this.useMock) {
-        lawsuits = await (this.datajud as DataJudMockProvider).searchByDocument(
-          input.debtorDocument || ""
-        )
-        sources.push("DataJud (Simulação)")
-      } else {
-        // Busca nos principais tribunais de SP
-        const courts: CourtCode[] = ["tjsp", "trf3", "trt2", "trt15"]
-        
-        console.log(`[DueDiligence] Buscando por CPF: ${input.debtorDocument || "N/A"} e Nome: ${input.debtorName}`)
-        
-        // IMPORTANTE: Busca por CPF E por NOME simultaneamente para maximizar resultados
-        // A API DataJud nem sempre tem o CPF indexado corretamente
-        lawsuits = await (this.datajud as DataJudProvider).searchMultipleCourts(
-          input.debtorDocument, // CPF (pode ser undefined)
-          input.debtorName,     // Nome (sempre presente)
-          courts
-        )
-        
-        sources.push(...courts.map(c => `DataJud (${c.toUpperCase()})`))
-      }
+      console.log(`[DueDiligence] Buscando por CPF: ${input.debtorDocument || "N/A"} e Nome: ${input.debtorName}`)
+      
+      // Busca completa por CPF e Nome
+      lawsuits = await this.escavador.searchComplete(
+        input.debtorDocument,
+        input.debtorName
+      )
+      
+      sources.push("Escavador (Nacional)")
 
       console.log(`[DueDiligence] ${lawsuits.length} processos encontrados`)
     } catch (error) {
       console.error("[DueDiligence] Erro ao buscar processos:", error)
-      errors.push("Erro ao consultar DataJud")
+      errors.push("Erro ao consultar Escavador")
     }
 
     // 2. Analisar com IA
     let aiAnalysis: AIRiskAnalysis
     try {
       aiAnalysis = await this.analyzeWithAI(lawsuits, input)
-      console.log(`[DueDiligence] Análise IA concluída: ${aiAnalysis.riskScore}`)
+      console.log(`[DueDiligence] Análise IA concluída: ${aiAnalysis.recommendation}`)
     } catch (error) {
       console.error("[DueDiligence] Erro na análise IA:", error)
       errors.push("Erro na análise por IA")
@@ -144,6 +132,7 @@ export class DueDiligenceService {
       status: l.status,
       value: l.value,
       startDate: l.startDate,
+      relevanceReason: l.relevanceReason,
     }))
 
     const prompt = buildDueDiligencePrompt({
@@ -152,7 +141,7 @@ export class DueDiligenceService {
       propertyAddress: input.propertyAddress,
       lawsuitsJson: lawsuits.length > 0 
         ? JSON.stringify(lawsuitsForAI, null, 2)
-        : "Nenhum processo encontrado nos tribunais consultados.",
+        : "Nenhum processo encontrado.",
     })
 
     const response = await aiClient.analyze({
@@ -193,7 +182,9 @@ export class DueDiligenceService {
     const hasMany = lawsuits.length > 5
     const hasCritical = lawsuits.some(l => 
       l.type.toLowerCase().includes("execução") ||
-      l.type.toLowerCase().includes("penhora")
+      l.type.toLowerCase().includes("penhora") ||
+      l.relevance === "critical" ||
+      l.relevance === "high"
     )
 
     return {
@@ -245,9 +236,14 @@ export class DueDiligenceService {
         l.type.toLowerCase().includes("imóvel") ||
         l.type.toLowerCase().includes("imovel") ||
         l.type.toLowerCase().includes("usucapião") ||
-        l.subject?.toLowerCase().includes("imóvel")
+        l.type.toLowerCase().includes("condominiais") ||
+        l.type.toLowerCase().includes("condomínio") ||
+        l.subject?.toLowerCase().includes("imóvel") ||
+        l.subject?.toLowerCase().includes("condominiais")
       ).length,
-      criticalCount: lawsuits.filter(l => l.relevance === "critical").length,
+      criticalCount: lawsuits.filter(l => 
+        l.relevance === "critical" || l.relevance === "high"
+      ).length,
     }
   }
 
@@ -269,7 +265,7 @@ export class DueDiligenceService {
 
     // Ajustes baseado em estatísticas
     if (stats.criticalCount > 0) base = Math.max(base, 70)
-    if (stats.relatedToProperty > 0) base += 10
+    if (stats.relatedToProperty > 0) base += 15
 
     // Normaliza entre 0-100
     return Math.min(100, Math.max(0, base))
@@ -285,4 +281,3 @@ export function getDueDiligenceService(): DueDiligenceService {
   }
   return service
 }
-
