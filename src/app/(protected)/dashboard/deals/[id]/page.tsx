@@ -8,6 +8,7 @@ import { auth } from "@/auth"
 import { DeleteDealDialog } from "../components/DeleteDealDialog"
 import { DealStatusSelector } from "../components/DealStatusSelector"
 import { AIAnalysisCard } from "../components/AIAnalysisCard"
+import { DueDiligenceCard } from "../components/DueDiligenceCard"
 import { deleteDealAction } from "../actions"
 import { calculateProjectViability } from "@/lib/domain/finance/calculateProjectViability"
 import type { ProjectInput } from "@/lib/domain/deals/projectInput"
@@ -307,6 +308,14 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
           existingAnalysis={deal.aiAnalysisData ? JSON.parse(deal.aiAnalysisData) : null}
           analysisDate={deal.aiAnalysisDate}
           analysisConfidence={deal.aiAnalysisConfidence}
+        />
+
+        {/* Due Diligence */}
+        <DueDiligenceCard
+          dealId={deal.id}
+          hasDebtorInfo={Boolean(deal.aiAnalysisData)}
+          existingData={deal.dueDiligenceData ? JSON.parse(deal.dueDiligenceData) : null}
+          analysisDate={deal.dueDiligenceDate}
         />
 
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">

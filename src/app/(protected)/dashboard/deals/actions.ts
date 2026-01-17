@@ -457,3 +457,108 @@ export async function analyzeDealDocumentsAction(dealId: string) {
     }
   }
 }
+
+/**
+ * Executa Due Diligence (análise de riscos jurídicos)
+ */
+export async function runDueDiligenceAction(dealId: string) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return { success: false, error: "Não autenticado" }
+  }
+
+  // Busca o deal e dados da análise IA
+  const deal = await prisma.deal.findFirst({
+    where: { id: dealId, userId: session.user.id },
+    select: {
+      id: true,
+      propertyName: true,
+      address: true,
+      aiAnalysisData: true,
+    },
+  })
+
+  if (!deal) {
+    return { success: false, error: "Deal não encontrado" }
+  }
+
+  // Extrai dados do devedor da análise de IA (se existir)
+  let debtorName: string | undefined
+  let debtorDocument: string | undefined
+
+  if (deal.aiAnalysisData) {
+    try {
+      const aiData = JSON.parse(deal.aiAnalysisData)
+      const registry = aiData.propertyRegistry
+
+      // Prioriza previousOwners (devedor em caso de consolidação)
+      if (registry?.previousOwners && registry.previousOwners.length > 0) {
+        debtorName = registry.previousOwners[0].name
+        debtorDocument = registry.previousOwners[0].document
+      } 
+      // Fallback para currentOwners
+      else if (registry?.currentOwners && registry.currentOwners.length > 0) {
+        debtorName = registry.currentOwners[0].name
+        debtorDocument = registry.currentOwners[0].document
+      }
+      // Compatibilidade com formato antigo
+      else if (registry?.previousOwner?.name) {
+        debtorName = registry.previousOwner.name
+        debtorDocument = registry.previousOwner.document
+      }
+      else if (registry?.currentOwner?.name) {
+        debtorName = registry.currentOwner.name
+        debtorDocument = registry.currentOwner.document
+      }
+    } catch (e) {
+      console.error("[DueDiligence] Erro ao parsear aiAnalysisData:", e)
+    }
+  }
+
+  // Validação: precisa de pelo menos o nome do devedor
+  if (!debtorName) {
+    return { 
+      success: false, 
+      error: "Não foi possível identificar o devedor. Execute a análise de documentos primeiro." 
+    }
+  }
+
+  console.log(`[DueDiligence] Iniciando análise para devedor: ${debtorName}`)
+
+  try {
+    // Importa o serviço dinamicamente para evitar problemas de bundling
+    const { getDueDiligenceService } = await import("@/lib/due-diligence")
+    const service = getDueDiligenceService()
+
+    const result = await service.analyze({
+      dealId,
+      debtorName,
+      debtorDocument,
+      propertyAddress: deal.address || undefined,
+    })
+
+    // Salva resultado no banco
+    await prisma.deal.update({
+      where: { id: dealId },
+      data: {
+        dueDiligenceData: JSON.stringify(result),
+        dueDiligenceDate: new Date(),
+        dueDiligenceRiskScore: result.riskScore,
+        dueDiligenceRiskPercent: result.riskPercentage,
+      },
+    })
+
+    revalidatePath(`/dashboard/deals/${dealId}`)
+
+    return {
+      success: true,
+      data: result,
+    }
+  } catch (error) {
+    console.error("[DueDiligence] Erro:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erro ao executar Due Diligence",
+    }
+  }
+}

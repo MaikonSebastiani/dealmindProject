@@ -82,6 +82,12 @@ model Deal {
   aiAnalysisDate           DateTime?
   aiAnalysisConfidence     Float?
 
+  // Due Diligence (análise jurídica)
+  dueDiligenceData         String?  // JSON com resultado completo
+  dueDiligenceDate         DateTime?
+  dueDiligenceRiskScore    String?  // low, medium, high, critical
+  dueDiligenceRiskPercent  Float?   // 0-100
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
