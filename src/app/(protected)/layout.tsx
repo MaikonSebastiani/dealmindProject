@@ -10,9 +10,9 @@ export default async function DashboardGroupLayout({ children }: { children: Rea
   }
 
   return (
-    <div className="min-h-screen bg-[#05060B] text-white flex">
-      <Sidebar />
-      <main className="flex-1 min-w-0">{children}</main>
+    <div className="min-h-screen bg-[#05060B] text-white flex flex-col lg:flex-row">
+      <Sidebar userName={session.user.name ?? "Usuário"} userEmail={session.user.email ?? undefined} />
+      <main className="flex-1 min-w-0 lg:pl-0">{children}</main>
     </div>
   )
 }

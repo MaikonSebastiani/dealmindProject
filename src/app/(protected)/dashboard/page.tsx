@@ -166,9 +166,9 @@ export default async function DashboardPage() {
         userEmail={session?.user?.email ?? undefined}
       />
 
-      <div className="px-10 py-6 space-y-6">
+      <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* KPIs principais */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <KpiCard
             title="Pipeline"
             value={String(pipelineCount)}
@@ -196,7 +196,7 @@ export default async function DashboardPage() {
         </section>
 
         {/* KPIs secundários */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <KpiCard
             title="Total de Imóveis"
             value={String(totalDeals)}

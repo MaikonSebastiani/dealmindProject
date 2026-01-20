@@ -195,16 +195,16 @@ export async function DashboardChartGrid() {
   }
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-4 sm:space-y-6">
       {/* Linha 1: Gráfico de Evolução + Distribuição por Tipo */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <Card className="lg:col-span-2 bg-[#0B0F17] border-[#141B29] rounded-2xl">
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <CardTitle className="text-sm">Evolução do Patrimônio</CardTitle>
               <div className="flex items-center gap-2 text-xs text-[#9AA6BC]">
-                <span className="h-2 w-2 rounded-full bg-[#4F7DFF]" />
-                Capital investido
+                <span className="h-2 w-2 rounded-full bg-[#4F7DFF] shrink-0" />
+                <span>Capital investido</span>
               </div>
             </div>
           </CardHeader>
@@ -226,7 +226,7 @@ export async function DashboardChartGrid() {
       {/* Linha 2: Top Deals */}
       <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <CardTitle className="text-sm">🏆 Top Deals por Lucro</CardTitle>
             <span className="text-xs text-[#7C889E]">Realizações</span>
           </div>

@@ -223,38 +223,40 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-[#05060B]/80 backdrop-blur border-b border-[#141B29]">
-        <div className="flex items-center justify-between px-10 py-5">
-          <div className="space-y-1 min-w-0">
+      <header className="bg-[#05060B] border-b border-[#141B29]">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-4 sm:px-6 lg:px-10 py-4 sm:py-5">
+          <div className="space-y-1 min-w-0 flex-1">
             <div className="flex items-center gap-2 text-xs text-[#7C889E]">
               <Link href="/dashboard/deals" className="hover:text-white">
                 Deals
               </Link>
-              <ChevronRight className="h-3 w-3" />
+              <ChevronRight className="h-3 w-3 shrink-0" />
               <span>Detalhe</span>
             </div>
-            <div className="flex items-center gap-4 mt-1 mb-4">
-              <h1 className="text-2xl font-semibold truncate">{deal.propertyName ?? "Deal"}</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1 mb-3 sm:mb-4">
+              <h1 className="text-xl sm:text-2xl font-semibold truncate">{deal.propertyName ?? "Deal"}</h1>
               <DealStatusSelector dealId={deal.id} currentStatus={deal.status} />
             </div>
-            <div className="text-sm text-[#7C889E] flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+            <div className="text-xs sm:text-sm text-[#7C889E] flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-y-1 sm:gap-x-4">
               <span>Compra: <span className="text-white font-medium">{formatBRL(projectInput.acquisition.purchasePrice)}</span></span>
-              <span className="text-[#2D3748]">•</span>
+              <span className="hidden sm:inline text-[#2D3748]">•</span>
               <span>Venda: <span className="text-white font-medium">{formatBRL(projectInput.operationAndExit.resalePrice)}</span></span>
-              <span className="text-[#2D3748]">•</span>
+              <span className="hidden sm:inline text-[#2D3748]">•</span>
               <span>Venda estimada em <span className="text-white font-medium">{formatMonthsLabel(expectedSaleMonths)}</span></span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               asChild
               variant="outline"
+              size="sm"
               className="border-[#141B29] bg-[#0B0F17] hover:bg-[#0B1323] text-[#9AA6BC]"
             >
               <Link href={`/dashboard/deals/${deal.id}/edit`}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Editar premissas
+                <Pencil className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Editar premissas</span>
+                <span className="sm:hidden">Editar</span>
               </Link>
             </Button>
             <DeleteDealDialog
@@ -266,8 +268,8 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
         </div>
       </header>
 
-      <div className="px-10 py-6 space-y-6">
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <DealKpiCard
             label="Lucro Líquido"
             value={formatBRL(viability.profit)}
@@ -280,12 +282,12 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
         <ViabilityCard status={viabilityStatus} detail={viabilityDetail} />
 
         {/* Documentos - barra compacta */}
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[#141B29] bg-[#0B0F17]">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border border-[#141B29] bg-[#0B0F17]">
           <span className="text-xs text-[#7C889E] flex items-center gap-1.5 shrink-0">
             <FileText className="h-3.5 w-3.5" />
             Documentos:
           </span>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 min-w-0">
             <DocumentChip
               label="Matrícula do imóvel"
               fileName={deal.propertyRegistryFileName}
@@ -313,7 +315,7 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
         {/* Apuração Jurídica - Em Desenvolvimento */}
         <DueDiligenceCard />
 
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Linha do tempo do projeto</CardTitle>
@@ -470,18 +472,21 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
           <Button
             asChild
             variant="outline"
+            size="sm"
             className="border-[#141B29] bg-[#0B0F17] hover:bg-[#0B1323] text-[#9AA6BC]"
           >
             <Link href="/dashboard/deals">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar para Deals
+              <ArrowLeft className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Voltar para Deals</span>
+              <span className="sm:hidden">Voltar</span>
             </Link>
           </Button>
 
-          <Button className="bg-[#4F7DFF] hover:bg-[#2D5BFF]" asChild>
+          <Button className="bg-[#4F7DFF] hover:bg-[#2D5BFF]" size="sm" asChild>
             <Link href={`/dashboard/deals/${deal.id}/edit`}>
-              <Pencil className="h-4 w-4 mr-2" />
-              Editar premissas
+              <Pencil className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Editar premissas</span>
+              <span className="sm:hidden">Editar</span>
             </Link>
           </Button>
         </div>

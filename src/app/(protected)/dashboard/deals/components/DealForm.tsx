@@ -177,9 +177,101 @@ function DocumentUpload(props: {
   const hasExistingFile = Boolean(props.existingFileName) && !props.markedForDeletion
 
   return (
-    <div className="rounded-2xl border border-[#141B29] bg-[#05060B] p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B0F17] border border-[#141B29]">
+    <div className="rounded-xl sm:rounded-2xl border border-[#141B29] bg-[#05060B] p-3 sm:p-4">
+      {/* Mobile Layout */}
+      <div className="flex flex-col sm:hidden gap-3">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-[#0B0F17] border border-[#141B29] shrink-0">
+            <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-[#7C889E]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-white">{props.label}</div>
+            <div className="text-xs text-[#7C889E] mt-0.5">{props.description}</div>
+          </div>
+        </div>
+
+        {/* Status do arquivo - Mobile */}
+        {props.markedForDeletion && (
+          <div className="text-xs text-rose-400 px-3">
+            Arquivo será removido ao salvar
+          </div>
+        )}
+
+        {hasNewFile && (
+          <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+            <div className="flex-1 min-w-0">
+              <div className="text-xs text-emerald-400 font-medium mb-0.5">Novo arquivo</div>
+              <div className="text-xs text-emerald-300 truncate">{props.selectedFileName}</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                props.onFileSelect(null)
+                if (props.inputRef.current) props.inputRef.current.value = ""
+              }}
+              className="text-[#7C889E] hover:text-white shrink-0"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {!hasNewFile && hasExistingFile && (
+          <div className="px-3 py-2 rounded-lg bg-[#0B0F17] border border-[#141B29]">
+            <div className="text-xs text-[#7C889E] mb-0.5">Arquivo atual</div>
+            <div className="text-xs text-[#9AA6BC] truncate">{props.existingFileName}</div>
+          </div>
+        )}
+
+        {/* Ações - Mobile */}
+        <div className="flex items-center gap-2">
+          {(hasExistingFile || hasNewFile) && !props.markedForDeletion && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={props.onDelete}
+              className="flex-1 h-9 text-xs text-[#7C889E] hover:text-rose-400 hover:bg-rose-400/10 border border-[#141B29]"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Remover
+            </Button>
+          )}
+
+          {props.markedForDeletion && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={props.onDelete}
+              className="flex-1 h-9 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10 border border-emerald-500/20"
+            >
+              Desfazer remoção
+            </Button>
+          )}
+
+          <label className="flex-1 cursor-pointer">
+            <div className="flex h-9 items-center justify-center gap-2 rounded-lg border border-[#141B29] bg-[#0B0F17] text-sm text-[#9AA6BC] hover:bg-[#0B1323] hover:text-white transition-colors">
+              <Upload className="h-4 w-4" />
+              <span>{hasNewFile || hasExistingFile ? "Substituir" : "Enviar"}</span>
+            </div>
+            <input
+              ref={props.inputRef}
+              type="file"
+              accept="application/pdf"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null
+                props.onFileSelect(file)
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
+      {/* Desktop Layout */}
+      <div className="hidden sm:flex items-start gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0B0F17] border border-[#141B29] shrink-0">
           <FileText className="h-5 w-5 text-[#7C889E]" />
         </div>
         <div className="flex-1 min-w-0">
@@ -360,7 +452,7 @@ export function DealForm(props: {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-[#05060B]/80 backdrop-blur border-b border-[#141B29]">
+      <header className="bg-[#05060B]/80 backdrop-blur border-b border-[#141B29]">
         <div className="flex items-start md:items-center justify-between px-6 md:px-10 py-5 gap-4">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2 text-xs text-[#7C889E]">

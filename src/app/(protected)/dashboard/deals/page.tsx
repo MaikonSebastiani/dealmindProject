@@ -232,22 +232,23 @@ export default async function DealsPage({
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-[#05060B]/80 backdrop-blur border-b border-[#141B29]">
-        <div className="flex items-center justify-between px-10 py-5">
-          <div className="space-y-1">
-            <h1 className="text-xl font-semibold">Deals</h1>
-            <p className="text-sm text-[#7C889E]">Lista de negócios imobiliários analisados</p>
+      <header className="bg-[#05060B]/80 backdrop-blur border-b border-[#141B29]">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-4 sm:px-6 lg:px-10 py-4 sm:py-5">
+          <div className="space-y-1 min-w-0 flex-1">
+            <h1 className="text-lg sm:text-xl font-semibold">Deals</h1>
+            <p className="text-xs sm:text-sm text-[#7C889E]">Lista de negócios imobiliários analisados</p>
           </div>
-          <Button asChild className="bg-[#4F7DFF] hover:bg-[#2D5BFF]">
+          <Button asChild size="sm" className="bg-[#4F7DFF] hover:bg-[#2D5BFF] shrink-0">
             <Link href="/dashboard/deals/new">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Deal
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Novo Deal</span>
+              <span className="sm:hidden">Novo</span>
             </Link>
           </Button>
         </div>
       </header>
 
-      <div className="px-10 py-6 space-y-6">
+      <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Filtros */}
         <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
           <CardContent className="py-4">
@@ -297,7 +298,8 @@ export default async function DealsPage({
               </div>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-[11px] uppercase tracking-wider text-[#7C889E]">
                     <tr className="border-b border-[#141B29]">
@@ -317,6 +319,50 @@ export default async function DealsPage({
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-3">
+                {deals.map((deal) => (
+                  <Link
+                    key={deal.id}
+                    href={`/dashboard/deals/${deal.id}`}
+                    className="block p-4 rounded-xl border border-[#141B29] bg-[#0B0F17] hover:bg-[#0B1323] transition"
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-white truncate mb-1">{deal.name}</div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center rounded-lg border border-[#141B29] bg-[#0B1323] px-2 py-1 text-xs text-[#C7D0DF]">
+                            {deal.propertyType}
+                          </span>
+                          <DealStatusBadge status={deal.status} />
+                        </div>
+                      </div>
+                      <ViabilityPill viability={deal.viability} />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <div className="text-xs text-[#7C889E] mb-1">Compra</div>
+                        <div className="text-white font-medium">{formatBRL(deal.purchasePrice)}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-[#7C889E] mb-1">Lucro Líquido</div>
+                        <div className={deal.profit < 0 ? "text-[#FF5A6A] font-medium" : "text-[#32D583] font-medium"}>
+                          {formatBRL(deal.profit)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-[#7C889E] mb-1">ROI</div>
+                        <div className="text-white font-medium">{formatPercent(deal.roi)}</div>
+                      </div>
+                      <div className="flex items-end">
+                        <span className="text-xs text-[#9AA6BC]">Ver detalhes →</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
               </div>
             </CardContent>
           </Card>
