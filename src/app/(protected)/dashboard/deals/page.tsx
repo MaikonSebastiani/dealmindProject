@@ -1,11 +1,12 @@
 import Link from "next/link"
-import { Search, Plus } from "lucide-react"
+import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { prisma } from "@/lib/db/prisma"
 import { auth } from "@/auth"
 import { DealStatusBadge } from "./components/DealStatusSelector"
 import { dealStatuses, type DealStatus } from "@/lib/domain/deals/dealStatus"
+import { DealSearch } from "./components/DealSearch"
 
 // Forçar revalidação a cada requisição (sem cache)
 export const dynamic = "force-dynamic"
@@ -137,6 +138,21 @@ function EmptyState() {
   )
 }
 
+function NoResultsState() {
+  return (
+    <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
+      <CardContent className="py-10">
+        <div className="max-w-md mx-auto text-center space-y-3">
+          <div className="text-base font-semibold text-white">Nenhum resultado encontrado</div>
+          <div className="text-sm text-[#7C889E]">
+            Tente ajustar os filtros ou termos de busca.
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 function StatusFilterButton({ 
   status, 
   count,
@@ -170,10 +186,10 @@ function StatusFilterButton({
 export default async function DealsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>
+  searchParams: Promise<{ status?: string; search?: string }>
 }) {
   const session = await auth()
-  const { status: filterStatus } = await searchParams
+  const { status: filterStatus, search: searchTerm } = await searchParams
 
   const items =
     session?.user?.id
@@ -192,9 +208,23 @@ export default async function DealsPage({
   }
 
   // Filtrar por status se especificado
-  const filteredItems = filterStatus && filterStatus !== "Todos"
+  let filteredItems = filterStatus && filterStatus !== "Todos"
     ? items.filter(d => d.status === filterStatus)
     : items
+
+  // Filtrar por busca (nome, endereço ou tipo)
+  if (searchTerm && searchTerm.trim()) {
+    const searchLower = searchTerm.toLowerCase().trim()
+    filteredItems = filteredItems.filter((d) => {
+      const name = (d.propertyName ?? "").toLowerCase()
+      const address = (d.address ?? "").toLowerCase()
+      const type = (d.propertyType ?? "").toLowerCase()
+      
+      return name.includes(searchLower) || 
+             address.includes(searchLower) || 
+             type.includes(searchLower)
+    })
+  }
 
   // Usar ROI já calculado do banco para consistência
   const deals: DealListItem[] = filteredItems.map((d) => {
@@ -223,8 +253,10 @@ export default async function DealsPage({
     }
   })
 
-  function getUiState(): "loading" | "empty" | "ready" {
-    return deals.length === 0 ? "empty" : "ready"
+  function getUiState(): "loading" | "empty" | "ready" | "noResults" {
+    if (items.length === 0) return "empty"
+    if (deals.length === 0 && (searchTerm || filterStatus)) return "noResults"
+    return "ready"
   }
 
   const state = getUiState()
@@ -254,13 +286,7 @@ export default async function DealsPage({
           <CardContent className="py-4">
             <div className="flex flex-col gap-4">
               {/* Busca */}
-              <div className="relative w-full lg:max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7C889E]" />
-                <input
-                  placeholder="Buscar deals..."
-                  className="h-10 w-full rounded-lg bg-[#05060B] border border-[#141B29] pl-10 pr-3 text-sm text-white placeholder-[#7C889E] outline-none focus:border-[#2D5BFF]"
-                />
-              </div>
+              <DealSearch />
 
               {/* Filtros de status */}
               <div className="flex flex-wrap items-center gap-2">
@@ -287,14 +313,25 @@ export default async function DealsPage({
           </CardContent>
         </Card>
 
-        {state === "loading" ? <DealsSkeleton /> : state === "empty" ? <EmptyState /> : (
+        {state === "loading" ? (
+          <DealsSkeleton />
+        ) : state === "empty" ? (
+          <EmptyState />
+        ) : state === "noResults" ? (
+          <NoResultsState />
+        ) : (
           <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm">
-                  {activeFilter === "Todos" ? "Todos os Deals" : `Deals: ${activeFilter}`}
+                  {searchTerm 
+                    ? `Resultados da busca${activeFilter !== "Todos" ? ` - ${activeFilter}` : ""}`
+                    : activeFilter === "Todos" 
+                      ? "Todos os Deals" 
+                      : `Deals: ${activeFilter}`
+                  }
                 </CardTitle>
-                <div className="text-xs text-[#7C889E]">{deals.length} itens</div>
+                <div className="text-xs text-[#7C889E]">{deals.length} {deals.length === 1 ? "item" : "itens"}</div>
               </div>
             </CardHeader>
             <CardContent>

@@ -8,9 +8,9 @@ import { BarChart3, Building2, FileText, HelpCircle, Home, LogOut, Menu, Setting
 const nav = [
   { href: "/dashboard", label: "Visão Geral", icon: Home },
   { href: "/dashboard/deals", label: "Imóveis", icon: Building2 },
+  { href: "/dashboard/relatorios", label: "Relatórios", icon: FileText },
   // { href: "/dashboard/investimentos", label: "Investimentos", icon: BarChart3 },
   // { href: "/dashboard/carteira", label: "Carteira", icon: Wallet },
-  // { href: "/dashboard/relatorios", label: "Relatórios", icon: FileText },
 ]
 
 interface SidebarProps {

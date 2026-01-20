@@ -642,7 +642,7 @@ export function AIAnalysisCard({
               <Sparkles className="h-5 w-5 text-purple-400" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">Análise por IA</h3>
+              <h3 className="text-sm font-semibold text-white">Análise de documentos por IA</h3>
               <p className="text-xs text-[#7C889E]">
                 {hasAnalysis 
                   ? `Atualizado em ${analysisDate?.toLocaleDateString("pt-BR")}`
