@@ -7,6 +7,7 @@
  * Documentação: https://datajud-wiki.cnj.jus.br/api-publica/endpoints
  */
 
+import { logger } from "@/lib/logger"
 import type { DataJudResponse, LawsuitInfo, ProcessParty } from "../types"
 
 // Tribunais disponíveis na API pública
@@ -27,6 +28,7 @@ export type CourtCode = typeof AVAILABLE_COURTS[number]
 export class DataJudProvider {
   private baseUrl = "https://api-publica.datajud.cnj.jus.br"
   private apiKey: string
+  private logger = logger.withContext("DataJud")
 
   constructor(apiKey: string) {
     this.apiKey = apiKey
@@ -68,13 +70,18 @@ export class DataJudProvider {
       })
 
       if (!response.ok) {
-        console.error(`[DataJud] Erro na API: ${response.status} ${response.statusText}`)
+        this.logger.error("Erro na API ao buscar por documento", new Error(`Status ${response.status}`), {
+          status: response.status,
+          statusText: response.statusText,
+          court,
+          document: cleanDoc.substring(0, 3) + "***", // Não logar documento completo
+        })
         return { hits: { total: { value: 0 }, hits: [] } }
       }
 
       return await response.json()
     } catch (error) {
-      console.error(`[DataJud] Erro na consulta ao ${court}:`, error)
+      this.logger.error("Erro na consulta ao tribunal", error, { court, document: cleanDoc.substring(0, 3) + "***" })
       return { hits: { total: { value: 0 }, hits: [] } }
     }
   }
@@ -110,13 +117,17 @@ export class DataJudProvider {
       })
 
       if (!response.ok) {
-        console.error(`[DataJud] Erro na API: ${response.status}`)
+        this.logger.error("Erro na API ao buscar por nome", new Error(`Status ${response.status}`), {
+          status: response.status,
+          court,
+          name,
+        })
         return { hits: { total: { value: 0 }, hits: [] } }
       }
 
       return await response.json()
     } catch (error) {
-      console.error(`[DataJud] Erro na consulta ao ${court}:`, error)
+      this.logger.error("Erro na consulta ao tribunal por nome", error, { court, name })
       return { hits: { total: { value: 0 }, hits: [] } }
     }
   }
@@ -133,14 +144,17 @@ export class DataJudProvider {
     const seenProcessNumbers = new Set<string>()
 
     for (const court of courts) {
-      console.log(`[DataJud] Consultando ${court.toUpperCase()}...`)
+      this.logger.debug("Consultando tribunal", { court: court.toUpperCase() })
       
       // 1. Busca por CPF/CNPJ (se disponível)
       if (document) {
         try {
           const byDoc = await this.searchByDocument(document, court, 30)
           if (byDoc.hits?.hits) {
-            console.log(`[DataJud] ${court.toUpperCase()} - ${byDoc.hits.hits.length} processos por CPF`)
+            this.logger.debug("Processos encontrados por CPF", {
+              court: court.toUpperCase(),
+              count: byDoc.hits.hits.length,
+            })
             for (const hit of byDoc.hits.hits) {
               const normalized = this.normalizeProcess(hit._source, court)
               if (!seenProcessNumbers.has(normalized.number)) {
@@ -150,7 +164,7 @@ export class DataJudProvider {
             }
           }
         } catch (e) {
-          console.error(`[DataJud] Erro busca por CPF em ${court}:`, e)
+          this.logger.error("Erro ao buscar por CPF", e, { court })
         }
         
         // Pequeno delay entre requisições
@@ -162,7 +176,10 @@ export class DataJudProvider {
         try {
           const byName = await this.searchByName(name, court, 30)
           if (byName.hits?.hits) {
-            console.log(`[DataJud] ${court.toUpperCase()} - ${byName.hits.hits.length} processos por NOME`)
+            this.logger.debug("Processos encontrados por nome", {
+              court: court.toUpperCase(),
+              count: byName.hits.hits.length,
+            })
             for (const hit of byName.hits.hits) {
               const normalized = this.normalizeProcess(hit._source, court)
               // Só adiciona se não for duplicata
@@ -173,14 +190,17 @@ export class DataJudProvider {
             }
           }
         } catch (e) {
-          console.error(`[DataJud] Erro busca por nome em ${court}:`, e)
+          this.logger.error("Erro ao buscar por nome", e, { court })
         }
         
         await new Promise(resolve => setTimeout(resolve, 200))
       }
     }
 
-    console.log(`[DataJud] Total: ${allResults.length} processos únicos encontrados`)
+    this.logger.info("Busca em múltiplos tribunais concluída", {
+      totalProcessos: allResults.length,
+      courtsConsultados: courts.length,
+    })
     return allResults
   }
 
@@ -209,8 +229,10 @@ export class DataJudProvider {
  * Provider de simulação para testes (sem API key)
  */
 export class DataJudMockProvider {
+  private logger = logger.withContext("DataJud Mock")
+
   async searchByDocument(document: string): Promise<LawsuitInfo[]> {
-    console.log(`[DataJud Mock] Simulando busca por documento: ${document}`)
+    this.logger.debug("Simulando busca por documento", { document: document.substring(0, 3) + "***" })
     
     // Simula alguns processos para teste
     return [
@@ -246,7 +268,7 @@ export class DataJudMockProvider {
   }
 
   async searchByName(name: string): Promise<LawsuitInfo[]> {
-    console.log(`[DataJud Mock] Simulando busca por nome: ${name}`)
+    this.logger.debug("Simulando busca por nome", { name })
     return this.searchByDocument("00000000000")
   }
 

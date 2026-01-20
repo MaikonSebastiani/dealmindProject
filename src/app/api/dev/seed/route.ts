@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma"
 import { hash } from "bcryptjs"
+import { logger } from "@/lib/logger"
 
 // Dados de exemplo de imóveis
 const sampleDeals = [
@@ -478,7 +479,7 @@ export async function GET() {
       user: { email: testEmail, password: testPassword },
     })
   } catch (error) {
-    console.error("Seed error:", error)
+    logger.error("Erro ao executar seed", error, undefined, "Seed")
     return Response.json({ error: String(error) }, { status: 500 })
   }
 }

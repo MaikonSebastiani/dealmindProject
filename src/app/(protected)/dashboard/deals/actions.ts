@@ -9,6 +9,7 @@ import { redirect } from "next/navigation"
 import { createAIVisionClient } from "@/lib/ai/clients"
 import { PROPERTY_REGISTRY_PROMPT, PROPERTY_REGISTRY_SYSTEM } from "@/lib/ai/prompts/property-registry"
 import { AUCTION_NOTICE_PROMPT, AUCTION_NOTICE_SYSTEM } from "@/lib/ai/prompts/auction-notice"
+import { logger } from "@/lib/logger"
 
 function getString(formData: FormData, key: string) {
   const v = formData.get(key)
@@ -325,11 +326,13 @@ export async function analyzeDealDocumentsAction(dealId: string) {
   const hasPropertyRegistry = deal.propertyRegistryData !== null
   const hasAuctionNotice = deal.auctionNoticeData !== null
 
-  console.log("[AI Analysis] Documentos encontrados:", {
+  const aiLogger = logger.withContext("AI Analysis")
+  aiLogger.info("Documentos encontrados", {
     hasPropertyRegistry,
     hasAuctionNotice,
     propertyRegistryFileName: deal.propertyRegistryFileName,
     auctionNoticeFileName: deal.auctionNoticeFileName,
+    dealId,
   })
 
   if (!hasPropertyRegistry && !hasAuctionNotice) {
@@ -343,7 +346,7 @@ export async function analyzeDealDocumentsAction(dealId: string) {
 
     // Analisar matrícula se existir
     if (hasPropertyRegistry && deal.propertyRegistryData) {
-      console.log("[AI Analysis] Iniciando análise da matrícula...")
+      aiLogger.info("Iniciando análise da matrícula", { dealId })
       const base64 = Buffer.from(deal.propertyRegistryData).toString("base64")
       
       const response = await aiClient.analyze({
@@ -353,7 +356,10 @@ export async function analyzeDealDocumentsAction(dealId: string) {
         mimeType: "application/pdf",
       })
 
-      console.log("[AI Analysis] Resposta da matrícula recebida, tamanho:", response.content?.length ?? 0)
+      aiLogger.debug("Resposta da matrícula recebida", {
+        dealId,
+        responseSize: response.content?.length ?? 0,
+      })
 
       if (response.content) {
         try {
@@ -363,7 +369,7 @@ export async function analyzeDealDocumentsAction(dealId: string) {
           if (extracted.confidence > highestConfidence) {
             highestConfidence = extracted.confidence
           }
-          console.log("[AI Analysis] Matrícula extraída com sucesso")
+          aiLogger.info("Matrícula extraída com sucesso", { dealId, confidence: extracted.confidence })
         } catch {
           // Se falhar, tenta extrair JSON do texto
           const jsonMatch = response.content.match(/\{[\s\S]*\}/)
@@ -374,13 +380,19 @@ export async function analyzeDealDocumentsAction(dealId: string) {
               if (extracted.confidence > highestConfidence) {
                 highestConfidence = extracted.confidence
               }
-              console.log("[AI Analysis] Matrícula extraída com sucesso (via regex)")
+              aiLogger.info("Matrícula extraída com sucesso (via regex)", { dealId, confidence: extracted.confidence })
             } catch (parseError) {
-              console.log("[AI Analysis] Erro ao parsear JSON da matrícula:", parseError)
-              console.log("[AI Analysis] Conteúdo:", response.content.substring(0, 1000))
+              aiLogger.warn("Erro ao parsear JSON da matrícula", {
+                dealId,
+                error: parseError instanceof Error ? parseError.message : String(parseError),
+                contentPreview: response.content.substring(0, 1000),
+              })
             }
           } else {
-            console.log("[AI Analysis] Não foi possível extrair JSON da matrícula. Resposta:", response.content.substring(0, 500))
+            aiLogger.warn("Não foi possível extrair JSON da matrícula", {
+              dealId,
+              responsePreview: response.content.substring(0, 500),
+            })
           }
         }
       }
@@ -388,7 +400,7 @@ export async function analyzeDealDocumentsAction(dealId: string) {
 
     // Analisar edital se existir
     if (hasAuctionNotice && deal.auctionNoticeData) {
-      console.log("[AI Analysis] Iniciando análise do edital...")
+      aiLogger.info("Iniciando análise do edital", { dealId })
       const base64 = Buffer.from(deal.auctionNoticeData).toString("base64")
       
       const response = await aiClient.analyze({
@@ -398,7 +410,10 @@ export async function analyzeDealDocumentsAction(dealId: string) {
         mimeType: "application/pdf",
       })
 
-      console.log("[AI Analysis] Resposta do edital recebida, tamanho:", response.content?.length ?? 0)
+      aiLogger.debug("Resposta do edital recebida", {
+        dealId,
+        responseSize: response.content?.length ?? 0,
+      })
 
       if (response.content) {
         try {
@@ -408,7 +423,7 @@ export async function analyzeDealDocumentsAction(dealId: string) {
           if (extracted.confidence > highestConfidence) {
             highestConfidence = extracted.confidence
           }
-          console.log("[AI Analysis] Edital extraído com sucesso")
+          aiLogger.info("Edital extraído com sucesso", { dealId, confidence: extracted.confidence })
         } catch {
           // Se falhar, tenta extrair JSON do texto
           const jsonMatch = response.content.match(/\{[\s\S]*\}/)
@@ -419,19 +434,29 @@ export async function analyzeDealDocumentsAction(dealId: string) {
               if (extracted.confidence > highestConfidence) {
                 highestConfidence = extracted.confidence
               }
-              console.log("[AI Analysis] Edital extraído com sucesso (via regex)")
+              aiLogger.info("Edital extraído com sucesso (via regex)", { dealId, confidence: extracted.confidence })
             } catch (parseError) {
-              console.log("[AI Analysis] Erro ao parsear JSON do edital:", parseError)
-              console.log("[AI Analysis] Conteúdo:", response.content.substring(0, 1000))
+              aiLogger.warn("Erro ao parsear JSON do edital", {
+                dealId,
+                error: parseError instanceof Error ? parseError.message : String(parseError),
+                contentPreview: response.content.substring(0, 1000),
+              })
             }
           } else {
-            console.log("[AI Analysis] Não foi possível extrair JSON do edital. Resposta:", response.content.substring(0, 500))
+            aiLogger.warn("Não foi possível extrair JSON do edital", {
+              dealId,
+              responsePreview: response.content.substring(0, 500),
+            })
           }
         }
       }
     }
 
-    console.log("[AI Analysis] Análise concluída. Dados:", Object.keys(analysisData))
+    aiLogger.info("Análise concluída", {
+      dealId,
+      documentsAnalyzed: Object.keys(analysisData),
+      highestConfidence,
+    })
 
     // Salvar análise no banco
     await prisma.deal.update({
@@ -450,7 +475,7 @@ export async function analyzeDealDocumentsAction(dealId: string) {
       data: analysisData,
     }
   } catch (error) {
-    console.error("Erro na análise por IA:", error)
+    aiLogger.error("Erro na análise por IA", error, { dealId })
     return { 
       success: false, 
       error: error instanceof Error ? error.message : "Erro ao processar documentos" 
@@ -511,7 +536,7 @@ export async function runDueDiligenceAction(dealId: string) {
         debtorDocument = registry.currentOwner.document
       }
     } catch (e) {
-      console.error("[DueDiligence] Erro ao parsear aiAnalysisData:", e)
+      logger.error("Erro ao parsear aiAnalysisData", e, { dealId }, "DueDiligence")
     }
   }
 
@@ -523,7 +548,8 @@ export async function runDueDiligenceAction(dealId: string) {
     }
   }
 
-  console.log(`[DueDiligence] Iniciando análise para devedor: ${debtorName}`)
+  const ddLogger = logger.withContext("DueDiligence")
+  ddLogger.info("Iniciando análise para devedor", { dealId, debtorName, debtorDocument })
 
   try {
     // Importa o serviço dinamicamente para evitar problemas de bundling
@@ -555,7 +581,7 @@ export async function runDueDiligenceAction(dealId: string) {
       data: result,
     }
   } catch (error) {
-    console.error("[DueDiligence] Erro:", error)
+    ddLogger.error("Erro ao executar Due Diligence", error, { dealId, debtorName })
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erro ao executar Due Diligence",

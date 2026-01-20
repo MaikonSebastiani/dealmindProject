@@ -7,6 +7,7 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import type { AIVisionClient, AIVisionRequest, AIVisionResponse } from "./types"
+import { logger } from "@/lib/logger"
 
 export class GeminiVisionClient implements AIVisionClient {
   private client: GoogleGenerativeAI
@@ -48,14 +49,20 @@ export class GeminiVisionClient implements AIVisionClient {
       const text = response.text()
 
       if (!text) {
-        console.error("[Gemini] Resposta vazia. FinishReason:", response.candidates?.[0]?.finishReason)
+        const finishReason = response.candidates?.[0]?.finishReason
+        logger.error(
+          "Resposta vazia do Gemini",
+          new Error("Resposta vazia"),
+          { finishReason },
+          "Gemini"
+        )
         throw new Error("Resposta vazia do Gemini")
       }
 
-      console.log("[Gemini] Resposta recebida, tamanho:", text.length)
+      logger.debug("Resposta recebida", { responseSize: text.length }, "Gemini")
       return { content: text }
     } catch (error) {
-      console.error("[Gemini] Erro na chamada:", error)
+      logger.error("Erro na chamada ao Gemini", error, undefined, "Gemini")
       throw error
     }
   }

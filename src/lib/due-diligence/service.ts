@@ -7,6 +7,7 @@
 import { createAIVisionClient } from "@/lib/ai/clients"
 import { EscavadorProvider, EscavadorMockProvider } from "./providers/escavador"
 import { DUE_DILIGENCE_SYSTEM, buildDueDiligencePrompt } from "./prompts"
+import { logger } from "@/lib/logger"
 import type {
   DueDiligenceInput,
   DueDiligenceResult,
@@ -18,17 +19,19 @@ export class DueDiligenceService {
   private escavador: EscavadorProvider | EscavadorMockProvider
   private useMock: boolean
 
+  private logger = logger.withContext("DueDiligence")
+
   constructor() {
     const apiKey = process.env.ESCAVADOR_API_KEY
 
     if (apiKey) {
       this.escavador = new EscavadorProvider(apiKey)
       this.useMock = false
-      console.log("[DueDiligence] Usando API Escavador")
+      this.logger.info("Usando API Escavador")
     } else {
       this.escavador = new EscavadorMockProvider()
       this.useMock = true
-      console.log("[DueDiligence] Usando mock (sem ESCAVADOR_API_KEY)")
+      this.logger.warn("Usando mock (sem ESCAVADOR_API_KEY)")
     }
   }
 
@@ -36,7 +39,11 @@ export class DueDiligenceService {
    * Executa análise completa de Due Diligence
    */
   async analyze(input: DueDiligenceInput): Promise<DueDiligenceResult> {
-    console.log(`[DueDiligence] Iniciando análise para: ${input.debtorName}`)
+    this.logger.info("Iniciando análise", {
+      debtorName: input.debtorName,
+      debtorDocument: input.debtorDocument,
+      propertyAddress: input.propertyAddress,
+    })
     const startTime = Date.now()
 
     const sources: string[] = []
@@ -45,7 +52,10 @@ export class DueDiligenceService {
 
     // 1. Buscar processos judiciais no Escavador
     try {
-      console.log(`[DueDiligence] Buscando por CPF: ${input.debtorDocument || "N/A"} e Nome: ${input.debtorName}`)
+      this.logger.debug("Buscando processos", {
+        debtorDocument: input.debtorDocument || "N/A",
+        debtorName: input.debtorName,
+      })
       
       // Busca completa por CPF e Nome
       lawsuits = await this.escavador.searchComplete(
@@ -55,9 +65,15 @@ export class DueDiligenceService {
       
       sources.push("Escavador (Nacional)")
 
-      console.log(`[DueDiligence] ${lawsuits.length} processos encontrados`)
+      this.logger.info("Processos encontrados", {
+        count: lawsuits.length,
+        debtorName: input.debtorName,
+      })
     } catch (error) {
-      console.error("[DueDiligence] Erro ao buscar processos:", error)
+      this.logger.error("Erro ao buscar processos", error, {
+        debtorName: input.debtorName,
+        debtorDocument: input.debtorDocument,
+      })
       errors.push("Erro ao consultar Escavador")
     }
 
@@ -65,9 +81,16 @@ export class DueDiligenceService {
     let aiAnalysis: AIRiskAnalysis
     try {
       aiAnalysis = await this.analyzeWithAI(lawsuits, input)
-      console.log(`[DueDiligence] Análise IA concluída: ${aiAnalysis.recommendation}`)
+      this.logger.info("Análise IA concluída", {
+        recommendation: aiAnalysis.recommendation,
+        confidence: aiAnalysis.confidence,
+        debtorName: input.debtorName,
+      })
     } catch (error) {
-      console.error("[DueDiligence] Erro na análise IA:", error)
+      this.logger.error("Erro na análise IA", error, {
+        debtorName: input.debtorName,
+        lawsuitsCount: lawsuits.length,
+      })
       errors.push("Erro na análise por IA")
       
       // Fallback se IA falhar
@@ -109,7 +132,13 @@ export class DueDiligenceService {
     }
 
     const duration = Date.now() - startTime
-    console.log(`[DueDiligence] Análise concluída em ${duration}ms`)
+    this.logger.info("Análise concluída", {
+      duration,
+      debtorName: input.debtorName,
+      riskScore: result.riskScore,
+      riskPercentage: result.riskPercentage,
+      lawsuitsCount: result.lawsuits.total,
+    })
 
     return result
   }

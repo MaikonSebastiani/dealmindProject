@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { hash } from 'bcryptjs'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
+import { logger } from '@/lib/logger'
 
 const registerSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
       { status: 201 }
     )
   } catch (error) {
-    console.error('Erro ao registrar usuário:', error)
+    logger.error('Erro ao registrar usuário', error, undefined, 'Auth')
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }

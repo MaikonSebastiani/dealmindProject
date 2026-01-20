@@ -7,6 +7,7 @@
  * Busca por CPF, CNPJ, Nome ou número do processo
  */
 
+import { logger } from "@/lib/logger"
 import type { LawsuitInfo, ProcessParty } from "../types"
 
 // Tipos da API do Escavador
@@ -68,6 +69,7 @@ type EscavadorPessoaResponse = {
 export class EscavadorProvider {
   private baseUrl = "https://api.escavador.com/v1"
   private apiKey: string
+  private logger = logger.withContext("Escavador")
 
   constructor(apiKey: string) {
     this.apiKey = apiKey
@@ -78,7 +80,7 @@ export class EscavadorProvider {
    */
   async searchByCPF(cpf: string): Promise<LawsuitInfo[]> {
     const cleanCpf = cpf.replace(/\D/g, "")
-    console.log(`[Escavador] Buscando por CPF: ${cleanCpf}`)
+    this.logger.debug("Buscando por CPF", { cpf: cleanCpf })
 
     try {
       // Primeiro busca a pessoa
@@ -94,20 +96,27 @@ export class EscavadorProvider {
 
       if (!pessoaResponse.ok) {
         if (pessoaResponse.status === 404) {
-          console.log(`[Escavador] Pessoa não encontrada por CPF`)
+          this.logger.debug("Pessoa não encontrada por CPF", { cpf: cleanCpf })
           return []
         }
-        console.error(`[Escavador] Erro na API: ${pessoaResponse.status}`)
+        this.logger.error("Erro na API ao buscar por CPF", new Error(`Status ${pessoaResponse.status}`), {
+          status: pessoaResponse.status,
+          cpf: cleanCpf,
+        })
         return []
       }
 
       const pessoa: EscavadorPessoaResponse = await pessoaResponse.json()
-      console.log(`[Escavador] Pessoa encontrada: ${pessoa.nome}, ID: ${pessoa.id}`)
+      this.logger.info("Pessoa encontrada", {
+        pessoaId: pessoa.id,
+        nome: pessoa.nome,
+        cpf: cleanCpf,
+      })
 
       // Busca processos da pessoa
       return await this.getProcessosPessoa(pessoa.id)
     } catch (error) {
-      console.error(`[Escavador] Erro ao buscar por CPF:`, error)
+      this.logger.error("Erro ao buscar por CPF", error, { cpf: cleanCpf })
       return []
     }
   }
@@ -116,7 +125,7 @@ export class EscavadorProvider {
    * Busca pessoa por nome e retorna seus processos
    */
   async searchByName(name: string): Promise<LawsuitInfo[]> {
-    console.log(`[Escavador] Buscando por nome: ${name}`)
+    this.logger.debug("Buscando por nome", { name })
 
     try {
       // Busca pessoas pelo nome
@@ -131,7 +140,10 @@ export class EscavadorProvider {
       )
 
       if (!searchResponse.ok) {
-        console.error(`[Escavador] Erro na busca por nome: ${searchResponse.status}`)
+        this.logger.error("Erro na busca por nome", new Error(`Status ${searchResponse.status}`), {
+          status: searchResponse.status,
+          name,
+        })
         return []
       }
 
@@ -139,11 +151,14 @@ export class EscavadorProvider {
       const pessoas: EscavadorPessoa[] = searchResult.items || []
 
       if (pessoas.length === 0) {
-        console.log(`[Escavador] Nenhuma pessoa encontrada com o nome`)
+        this.logger.debug("Nenhuma pessoa encontrada com o nome", { name })
         return []
       }
 
-      console.log(`[Escavador] ${pessoas.length} pessoa(s) encontrada(s)`)
+      this.logger.info("Pessoas encontradas", {
+        count: pessoas.length,
+        name,
+      })
 
       // Pega processos da primeira pessoa (mais relevante)
       // Se precisar de mais precisão, pode filtrar por CPF depois
@@ -162,7 +177,7 @@ export class EscavadorProvider {
         return true
       })
     } catch (error) {
-      console.error(`[Escavador] Erro ao buscar por nome:`, error)
+      this.logger.error("Erro ao buscar por nome", error, { name })
       return []
     }
   }
@@ -183,18 +198,24 @@ export class EscavadorProvider {
       )
 
       if (!response.ok) {
-        console.error(`[Escavador] Erro ao buscar processos: ${response.status}`)
+        this.logger.error("Erro ao buscar processos", new Error(`Status ${response.status}`), {
+          status: response.status,
+          pessoaId,
+        })
         return []
       }
 
       const data = await response.json()
       const processos: EscavadorProcesso[] = data.items || []
 
-      console.log(`[Escavador] ${processos.length} processos encontrados para pessoa ${pessoaId}`)
+      this.logger.debug("Processos encontrados para pessoa", {
+        pessoaId,
+        count: processos.length,
+      })
 
       return processos.map(p => this.normalizeProcesso(p))
     } catch (error) {
-      console.error(`[Escavador] Erro ao buscar processos da pessoa:`, error)
+      this.logger.error("Erro ao buscar processos da pessoa", error, { pessoaId })
       return []
     }
   }
@@ -228,7 +249,11 @@ export class EscavadorProvider {
       }
     }
 
-    console.log(`[Escavador] Total: ${allResults.length} processos únicos`)
+    this.logger.info("Busca completa concluída", {
+      totalProcessos: allResults.length,
+      cpf: cpf ? "fornecido" : "não fornecido",
+      name: name ? "fornecido" : "não fornecido",
+    })
     return allResults
   }
 
@@ -319,18 +344,20 @@ export class EscavadorProvider {
  * Provider mock para testes (sem API key)
  */
 export class EscavadorMockProvider {
+  private logger = logger.withContext("Escavador Mock")
+
   async searchByCPF(cpf: string): Promise<LawsuitInfo[]> {
-    console.log(`[Escavador Mock] Simulando busca por CPF: ${cpf}`)
+    this.logger.debug("Simulando busca por CPF", { cpf })
     return this.getMockData()
   }
 
   async searchByName(name: string): Promise<LawsuitInfo[]> {
-    console.log(`[Escavador Mock] Simulando busca por nome: ${name}`)
+    this.logger.debug("Simulando busca por nome", { name })
     return this.getMockData()
   }
 
   async searchComplete(cpf?: string, name?: string): Promise<LawsuitInfo[]> {
-    console.log(`[Escavador Mock] Simulando busca completa`)
+    this.logger.debug("Simulando busca completa", { cpf: cpf ? "fornecido" : undefined, name })
     return this.getMockData()
   }
 
