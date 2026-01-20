@@ -310,13 +310,8 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
           analysisConfidence={deal.aiAnalysisConfidence}
         />
 
-        {/* Due Diligence */}
-        <DueDiligenceCard
-          dealId={deal.id}
-          hasDebtorInfo={Boolean(deal.aiAnalysisData)}
-          existingData={deal.dueDiligenceData ? JSON.parse(deal.dueDiligenceData) : null}
-          analysisDate={deal.dueDiligenceDate}
-        />
+        {/* Apuração Jurídica - Em Desenvolvimento */}
+        <DueDiligenceCard />
 
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
