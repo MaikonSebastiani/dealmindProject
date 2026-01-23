@@ -70,6 +70,14 @@ type AIAnalysisData = {
       auctionLocation?: string
       auctioneerName?: string
       auctioneerRegistration?: string
+      auctionPlaces?: Array<{
+        place?: string
+        minimumBid?: number
+        appraisalValue?: number
+        openingBid?: number
+        date?: string
+        time?: string
+      }>
     }
     legalInfo?: {
       processNumber?: string
@@ -634,8 +642,51 @@ function AnalysisResultModal({
                       </div>
                     )}
 
-                    {/* Valores */}
-                    {auction.values && (
+                    {/* Praças de Leilão */}
+                    {auction.auctionInfo?.auctionPlaces && auction.auctionInfo.auctionPlaces.length > 0 ? (
+                      <div className="rounded-xl bg-[#05060B] border border-[#141B29] p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <DollarSign className="h-4 w-4 text-yellow-400" />
+                          <span className="text-sm font-medium text-white">Praças de Leilão</span>
+                        </div>
+                        <div className="space-y-4">
+                          {auction.auctionInfo.auctionPlaces.map((place, index) => (
+                            <div key={index} className="rounded-lg border border-[#141B29] bg-[#0B0F17] p-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-sm font-medium text-white">{place.place || `Praça ${index + 1}`}</span>
+                                {place.date && (
+                                  <span className="text-xs text-[#7C889E]">
+                                    {formatDateBR(place.date)}
+                                    {place.time && ` às ${place.time}`}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="space-y-1">
+                                {place.minimumBid && (
+                                  <InfoRow 
+                                    label="Lance mínimo" 
+                                    value={formatBRL(place.minimumBid)} 
+                                    highlight={index === 0} 
+                                  />
+                                )}
+                                {place.appraisalValue && (
+                                  <InfoRow 
+                                    label="Avaliação" 
+                                    value={formatBRL(place.appraisalValue)} 
+                                  />
+                                )}
+                                {place.openingBid && (
+                                  <InfoRow 
+                                    label="Lance inicial" 
+                                    value={formatBRL(place.openingBid)} 
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : auction.values ? (
                       <div className="rounded-xl bg-[#05060B] border border-[#141B29] p-4">
                         <div className="flex items-center gap-2 mb-3">
                           <DollarSign className="h-4 w-4 text-yellow-400" />
@@ -646,7 +697,7 @@ function AnalysisResultModal({
                         <InfoRow label="Lance inicial" value={auction.values.openingBid ? formatBRL(auction.values.openingBid) : null} />
                         <InfoRow label="Incremento" value={auction.values.incrementPercent ? `${auction.values.incrementPercent}%` : null} />
                       </div>
-                    )}
+                    ) : null}
 
                     {/* Condições de Pagamento */}
                     {(auction.payment || auction.auctioneerFeePercent || auction.downPaymentPercent || auction.paymentConditions || auction.acceptsFinancing !== undefined || auction.acceptsFGTS !== undefined) && (

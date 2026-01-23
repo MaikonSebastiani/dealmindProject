@@ -17,12 +17,14 @@ Analise este edital de leilão imobiliário e extraia TODAS as informações rel
 IMPORTANTE:
 - Retorne APENAS um JSON válido, sem explicações adicionais ou markdown
 - Use null para campos não encontrados
-- Valores monetários em reais como número (ex: 350000 para R$ 350.000)
+- Valores monetários em reais como número DECIMAL (ex: 432255.15 para R$ 432.255,15 ou 350000 para R$ 350.000,00)
+- ⚠️ CRÍTICO: Para cada praça no array auctionPlaces, SEMPRE extraia os valores (minimumBid, appraisalValue, openingBid) se mencionados no edital
 - Datas no formato ISO (YYYY-MM-DD)
 - Horários no formato HH:MM (24h)
 - Porcentagens como número (ex: 5 para 5%)
 - Se o edital tiver múltiplos imóveis, extraia informações GERAIS que se aplicam a todos
 - Se houver informações específicas de um imóvel único, extraia também
+- Se o edital mencionar praças com valores, extraia TODAS as praças com seus respectivos valores
 
 ESTRUTURA DE RESPOSTA OBRIGATÓRIA:
 {
@@ -33,7 +35,17 @@ ESTRUTURA DE RESPOSTA OBRIGATÓRIA:
     "auctionTime": "HH:MM" ou null,
     "auctionLocation": "local do leilão (endereço completo)" ou null,
     "auctioneerName": "nome do leiloeiro" ou null,
-    "auctioneerRegistration": "número de registro do leiloeiro" ou null
+    "auctioneerRegistration": "número de registro do leiloeiro" ou null,
+    "auctionPlaces": [
+      {
+        "place": "1ª Praça" | "2ª Praça" | "3ª Praça" | "Extrajudicial" | null,
+        "minimumBid": valor numérico do lance mínimo desta praça ou null,
+        "appraisalValue": valor numérico de avaliação desta praça ou null,
+        "openingBid": valor numérico do lance inicial desta praça ou null,
+        "date": "YYYY-MM-DD" ou null (data específica desta praça, se diferente),
+        "time": "HH:MM" ou null (horário específico desta praça, se diferente)
+      }
+    ] ou [] // Array de praças disponíveis com seus respectivos valores
   },
   "legalInfo": {
     "processNumber": "número do processo judicial (apenas números)" ou null,
@@ -100,6 +112,25 @@ REGRAS PARA INFORMAÇÕES DO LEILÃO:
 - Extraia local (endereço completo onde será realizado)
 - Extraia nome e registro do leiloeiro
 
+REGRAS CRÍTICAS PARA PRAÇAS DE LEILÃO:
+- ⚠️ MUITO IMPORTANTE: Se o edital mencionar múltiplas praças (1ª Praça, 2ª Praça, 3ª Praça, etc), extraia TODAS as praças disponíveis
+- Para cada praça mencionada no edital, você DEVE criar um objeto no array auctionPlaces com:
+  * "place": Nome exato da praça (ex: "1ª Praça", "2ª Praça", "Primeira Praça", "Segunda Praça")
+  * "minimumBid": Valor numérico do lance mínimo desta praça específica (OBRIGATÓRIO se mencionado)
+  * "appraisalValue": Valor numérico de avaliação desta praça específica (se houver)
+  * "openingBid": Valor numérico do lance inicial desta praça específica (se houver)
+  * "date": Data específica desta praça no formato YYYY-MM-DD (se diferente da data geral)
+  * "time": Horário específico desta praça no formato HH:MM (se diferente do horário geral)
+- Se o edital mostrar uma tabela ou lista com praças e valores, extraia TODOS os valores de cada praça
+- Se houver apenas uma praça mencionada, ainda assim inclua no array auctionPlaces
+- Se os valores forem diferentes entre as praças, extraia os valores específicos de cada uma
+- Se uma praça não tiver valores específicos mencionados, use os valores gerais do edital
+- Busque por padrões como:
+  * "1ª Praça: R$ XXX" ou "Primeira Praça: R$ XXX"
+  * "2ª Praça: R$ XXX" ou "Segunda Praça: R$ XXX"
+  * Tabelas com colunas "Praça", "Lance Mínimo", "Avaliação", etc
+  * Listas numeradas com valores por praça
+
 REGRAS PARA INFORMAÇÕES JURÍDICAS:
 - Busque por: "processo", "autos", "vara", "foro", "juiz", "exequente", "credor", "devedor"
 - Extraia número do processo (apenas números, sem pontos/traços)
@@ -114,12 +145,28 @@ REGRAS PARA INFORMAÇÕES DO IMÓVEL:
 - Extraia descrição detalhada do imóvel
 - Extraia características (quartos, banheiros, vagas, etc) em characteristics[]
 
-REGRAS PARA VALORES:
-- Lance mínimo: valor mínimo para participar
-- Avaliação: valor de avaliação do imóvel
+REGRAS PARA VALORES E PRAÇAS (CRÍTICO):
+- ⚠️ EXTRAÇÃO OBRIGATÓRIA: Se o edital mencionar múltiplas praças (1ª Praça, 2ª Praça, 3ª Praça), extraia TODAS com seus valores
+- Para cada praça identificada, você DEVE extrair TODOS os valores disponíveis:
+  * Nome da praça (1ª Praça, 2ª Praça, etc) - OBRIGATÓRIO
+  * Lance mínimo específico desta praça - OBRIGATÓRIO se mencionado (converter para número: R$ 432.255,15 → 432255.15)
+  * Valor de avaliação específico desta praça (se mencionado)
+  * Lance inicial específico desta praça (se mencionado)
+  * Data e horário específicos (se diferentes da data/horário geral do leilão)
+- FORMATOS DE VALORES COMUNS NO EDITAL:
+  * "1ª Praça: R$ 432.255,15" → minimumBid: 432255.15
+  * "Lance mínimo 1ª Praça: R$ 400.000,00" → minimumBid: 400000
+  * "Avaliação: R$ 500.000,00" → appraisalValue: 500000
+  * Tabelas com colunas "Praça" e "Valor" → extrair cada linha
+- Se houver apenas uma praça mencionada, ainda assim inclua no array auctionPlaces com seus valores
+- Se os valores forem diferentes entre as praças, extraia os valores específicos de cada uma
+- Se uma praça não tiver valores específicos mencionados, use os valores gerais do edital para essa praça
+- Se não houver menção a praças específicas, use os valores gerais em "values"
+- Lance mínimo: valor mínimo para participar (sempre extrair como número puro)
+- Avaliação: valor de avaliação do imóvel (sempre extrair como número puro)
 - Lance inicial: valor do primeiro lance (pode ser igual ao mínimo)
 - Incremento: percentual de aumento entre lances
-- Se houver múltiplos imóveis, extraia valores gerais ou do primeiro mencionado
+- ATENÇÃO: Valores podem estar em diferentes formatos (R$ 100.000,00 ou 100000 ou 100.000), sempre converta para número puro sem pontos ou vírgulas decimais
 
 REGRAS PARA CONDIÇÕES DE PAGAMENTO:
 - Comissão do leiloeiro: geralmente 5%, mas pode variar
