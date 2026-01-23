@@ -50,6 +50,9 @@ const intPositive = z
 export const propertyTypes = ["Apartamento", "Casa", "Comercial", "Lote"] as const
 export type PropertyType = (typeof propertyTypes)[number]
 
+export const paymentTypes = ["cash", "installment", "financing"] as const
+export type PaymentType = (typeof paymentTypes)[number]
+
 export const dealFormSchema = z
   .object({
     propertyName: z.string().trim().min(1, "Informe o nome do imóvel"),
@@ -62,8 +65,15 @@ export const dealFormSchema = z
       purchasePrice: moneyRequiredPositive,
       downPaymentPercent: percentRequired,
       auctioneerFeePercent: percentOptional,
+      advisoryFeePercent: percentOptional,  // Porcentagem de assessoria sobre valor de compra
       itbiPercent: percentRequired,
       registryCost: moneyNonNegative,
+    }),
+    paymentType: z.enum(paymentTypes, {
+      required_error: "Selecione o tipo de pagamento",
+    }),
+    installment: z.object({
+      installmentsCount: intPositive,
     }),
     financing: z.object({
       enabled: z.boolean(),
@@ -88,15 +98,29 @@ export const dealFormSchema = z
     }),
   })
   .superRefine((data, ctx) => {
-    if (!data.financing.enabled) return
+    // Validação para financiamento
+    // Quando paymentType é "financing", o financiamento está automaticamente habilitado
+    if (data.paymentType === "financing") {
+      const interest = Number(data.financing.interestRateAnnual.replace(",", "."))
+      if (!Number.isFinite(interest) || interest <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Obrigatório para financiamento",
+          path: ["financing", "interestRateAnnual"],
+        })
+      }
+    }
 
-    const interest = Number(data.financing.interestRateAnnual.replace(",", "."))
-    if (!Number.isFinite(interest) || interest <= 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Obrigatório quando financiamento está habilitado",
-        path: ["financing", "interestRateAnnual"],
-      })
+    // Validação para parcelamento
+    if (data.paymentType === "installment") {
+      const installments = Number(data.installment.installmentsCount)
+      if (!Number.isInteger(installments) || installments <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Informe o número de parcelas",
+          path: ["installment", "installmentsCount"],
+        })
+      }
     }
   })
 

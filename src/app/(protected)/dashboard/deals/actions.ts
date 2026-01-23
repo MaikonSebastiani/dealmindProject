@@ -70,13 +70,19 @@ export async function createDealAction(formData: FormData) {
 
       downPaymentPercent: input.acquisition.downPaymentPercent,
       auctioneerFeePercent: input.acquisition.auctioneerFeePercent ?? null,
+      advisoryFeePercent: input.acquisition.advisoryFeePercent ?? null,
       itbiPercent: input.acquisition.itbiPercent,
       registryCost: input.acquisition.registryCost,
 
-      financingEnabled: Boolean(input.financing?.enabled),
-      interestRateAnnual: input.financing?.interestRateAnnual ?? null,
-      termMonths: input.financing?.termMonths ?? null,
-      amortizationType: input.financing?.amortizationType ?? null,
+      financingEnabled: input.paymentType === "financing", // Sempre true quando paymentType é "financing"
+      interestRateAnnual: input.paymentType === "financing" ? (input.financing?.interestRateAnnual ?? null) : null,
+      // termMonths pode vir de financing ou installment
+      termMonths: input.paymentType === "financing" 
+        ? (input.financing?.termMonths ?? null)
+        : (input.paymentType === "installment" 
+          ? (input.installment?.installmentsCount ?? null)
+          : null),
+      amortizationType: input.paymentType === "financing" ? (input.financing?.amortizationType ?? null) : null,
 
       iptuDebt: input.liabilities.iptuDebt,
       condoDebt: input.liabilities.condoDebt,
@@ -166,13 +172,19 @@ export async function updateDealAction(dealId: string, formData: FormData) {
 
     downPaymentPercent: input.acquisition.downPaymentPercent,
     auctioneerFeePercent: input.acquisition.auctioneerFeePercent ?? null,
+    advisoryFeePercent: input.acquisition.advisoryFeePercent ?? null,
     itbiPercent: input.acquisition.itbiPercent,
     registryCost: input.acquisition.registryCost,
 
-    financingEnabled: Boolean(input.financing?.enabled),
-    interestRateAnnual: input.financing?.interestRateAnnual ?? null,
-    termMonths: input.financing?.termMonths ?? null,
-    amortizationType: input.financing?.amortizationType ?? null,
+    financingEnabled: input.paymentType === "financing" && Boolean(input.financing?.enabled),
+    interestRateAnnual: input.paymentType === "financing" ? (input.financing?.interestRateAnnual ?? null) : null,
+    // termMonths pode vir de financing ou installment
+    termMonths: input.paymentType === "financing" 
+      ? (input.financing?.termMonths ?? null)
+      : (input.paymentType === "installment" 
+        ? (input.installment?.installmentsCount ?? null)
+        : null),
+    amortizationType: input.paymentType === "financing" ? (input.financing?.amortizationType ?? null) : null,
 
     iptuDebt: input.liabilities.iptuDebt,
     condoDebt: input.liabilities.condoDebt,

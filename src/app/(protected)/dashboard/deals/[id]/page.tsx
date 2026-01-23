@@ -151,14 +151,35 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
     notFound()
   }
 
+  // Inferir paymentType baseado nos dados existentes
+  // Se tiver financiamento habilitado, é financing
+  // Se tiver termMonths mas não tiver financingEnabled, pode ser parcelamento (compatibilidade)
+  // Senão é cash
+  const paymentType: "cash" | "installment" | "financing" = 
+    deal.financingEnabled 
+      ? "financing" 
+      : (deal.termMonths && deal.termMonths > 0 && !deal.financingEnabled)
+        ? "installment"  // Inferir como parcelamento se tiver prazo mas não tiver financiamento
+        : "cash"
+  
+  // Calcular valor restante para verificar se faz sentido ter parcelamento
+  const remainingAmount = deal.purchasePrice - ((deal.purchasePrice * (deal.downPaymentPercent ?? 0)) / 100)
+  const hasRemainingAmount = remainingAmount > 0
+  
   const projectInput: ProjectInput = {
     acquisition: {
       purchasePrice: deal.purchasePrice,
       downPaymentPercent: deal.downPaymentPercent ?? 0,
       auctioneerFeePercent: deal.auctioneerFeePercent ?? undefined,
+      advisoryFeePercent: deal.advisoryFeePercent ?? undefined,
       itbiPercent: deal.itbiPercent ?? 0,
       registryCost: deal.registryCost ?? 0,
     },
+    paymentType,
+    // Só adicionar installment se realmente for parcelamento e tiver valor restante
+    installment: paymentType === "installment" && deal.termMonths && deal.termMonths > 0 && hasRemainingAmount
+      ? { installmentsCount: deal.termMonths } 
+      : undefined,
     financing: deal.financingEnabled
       ? {
           enabled: true,
@@ -186,10 +207,18 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
 
   const viability = calculateProjectViability(projectInput)
   const expectedSaleMonths = projectInput.operationAndExit.expectedSaleMonths
+  
+  // Debug: verificar se parcelamento está sendo detectado
+  // console.log("Payment Type:", paymentType)
+  // console.log("Viability installment:", viability.installment)
+  // console.log("Viability paymentType:", viability.paymentType)
 
   const itbiValue = (projectInput.acquisition.purchasePrice * projectInput.acquisition.itbiPercent) / 100
   const auctioneerFeeValue = projectInput.acquisition.auctioneerFeePercent
     ? (projectInput.acquisition.purchasePrice * projectInput.acquisition.auctioneerFeePercent) / 100
+    : 0
+  const advisoryFeeValue = projectInput.acquisition.advisoryFeePercent
+    ? (projectInput.acquisition.purchasePrice * projectInput.acquisition.advisoryFeePercent) / 100
     : 0
 
   const saleDiscountValue = (projectInput.operationAndExit.resalePrice * projectInput.operationAndExit.resaleDiscountPercent) / 100
@@ -199,7 +228,47 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
   const condoTotal = projectInput.operationAndExit.monthlyCondoFee * expectedSaleMonths
   const iptuTotal = projectInput.operationAndExit.monthlyIptu * expectedSaleMonths
   const interestUntilSale = viability.financing?.interestPaidUntilSale ?? 0
-  const remainingBalanceAtSale = viability.financing?.remainingBalanceAtSale ?? 0
+  
+  // Valor da parcela (financiamento ou parcelamento)
+  // Verificar tanto viability.paymentType quanto paymentType local (para compatibilidade)
+  const isFinancing = viability.paymentType === "financing" || paymentType === "financing"
+  const isInstallment = viability.paymentType === "installment" || paymentType === "installment"
+  
+  // Calcular valor restante para parcelamento
+  const downPaymentValue = (projectInput.acquisition.purchasePrice * projectInput.acquisition.downPaymentPercent) / 100
+  const remainingAmountForInstallment = Math.max(0, projectInput.acquisition.purchasePrice - downPaymentValue)
+  
+  // Calcular parcela mensal diretamente se for parcelamento (fallback se viability não tiver)
+  const calculatedMonthlyInstallment = (isInstallment || (deal.termMonths && deal.termMonths > 0 && !deal.financingEnabled)) && deal.termMonths && deal.termMonths > 0 && remainingAmountForInstallment > 0
+    ? remainingAmountForInstallment / deal.termMonths
+    : 0
+  
+  const monthlyPayment = isFinancing && viability.financing
+    ? (viability.financing.initialInstallmentEstimate ?? 0)
+    : isInstallment && viability.installment
+      ? (viability.installment.monthlyInstallment ?? calculatedMonthlyInstallment)
+      : calculatedMonthlyInstallment > 0
+        ? calculatedMonthlyInstallment  // Fallback: calcular diretamente se tiver termMonths
+        : 0
+  
+  // Calcular saldo devedor (pode vir de financiamento, parcelamento ou calcular diretamente)
+  let remainingBalanceAtSale = viability.financing?.remainingBalanceAtSale ?? viability.installment?.remainingBalanceAtSale ?? 0
+  
+  // Se for parcelamento mas não tiver no viability, calcular diretamente
+  if (remainingBalanceAtSale === 0 && (isInstallment || (deal.termMonths && deal.termMonths > 0 && !deal.financingEnabled)) && deal.termMonths && deal.termMonths > 0 && monthlyPayment > 0) {
+    const parcelsPaid = Math.min(expectedSaleMonths, deal.termMonths)
+    const totalPaid = monthlyPayment * parcelsPaid
+    remainingBalanceAtSale = Math.max(0, remainingAmountForInstallment - totalPaid)
+  }
+  
+  // Total pago em parcelas até a venda
+  const totalPaidInInstallments = isInstallment && viability.installment
+    ? (viability.installment.totalPaidUntilSale ?? (monthlyPayment * Math.min(expectedSaleMonths, deal.termMonths ?? expectedSaleMonths)))
+    : isFinancing && viability.financing
+      ? (viability.financing.principalPaidUntilSale + viability.financing.interestPaidUntilSale)
+      : monthlyPayment > 0
+        ? (monthlyPayment * Math.min(expectedSaleMonths, deal.termMonths ?? expectedSaleMonths))  // Fallback
+        : 0
 
   const viabilityStatus: "Viável" | "Margem apertada" | "Inviável" =
     deal.roi <= 0 ? "Inviável" : deal.roi < 0.1 ? "Margem apertada" : "Viável"
@@ -337,14 +406,27 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
                 <SectionTitle>Meses 1 → {expectedSaleMonths}</SectionTitle>
                 <Row label="Condomínio mensal" value={formatBRL(projectInput.operationAndExit.monthlyCondoFee)} />
                 <Row label="IPTU mensal" value={formatBRL(projectInput.operationAndExit.monthlyIptu)} />
-                {viability.financing ? (
+                {/* Mostrar parcela do parcelamento (sempre abaixo de IPTU) - apenas quando NÃO for financiamento */}
+                {!deal.financingEnabled && deal.termMonths && deal.termMonths > 0 && calculatedMonthlyInstallment > 0 ? (
                   <Row
-                    label="Juros (mês 1, estimado)"
-                    value={formatBRL(viability.financing.financedPrincipal * viability.financing.monthlyRate)}
+                    label="Parcela do parcelamento"
+                    value={formatBRL(calculatedMonthlyInstallment)}
                   />
-                ) : (
-                  <Row label="Juros do financiamento" value="—" tone="muted" />
-                )}
+                ) : null}
+                {/* Mostrar parcela se for financiamento */}
+                {deal.financingEnabled && viability.financing && monthlyPayment > 0 ? (
+                  <>
+                    <Row
+                      label="Parcela do financiamento"
+                      value={formatBRL(monthlyPayment)}
+                    />
+                    <Row
+                      label="Juros (mês 1, estimado)"
+                      value={formatBRL(viability.financing.financedPrincipal * viability.financing.monthlyRate)}
+                      tone="muted"
+                    />
+                  </>
+                ) : null}
               </div>
 
               <div className="space-y-2">
@@ -352,7 +434,7 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
                 <Row label="Venda (valor esperado)" value={formatBRL(projectInput.operationAndExit.resalePrice)} />
                 <Row label="Deságio aplicado" value={`- ${formatBRL(saleDiscountValue)}`} tone="muted" />
                 <Row label="Comissão de corretagem" value={`- ${formatBRL(brokerFeeValue)}`} tone="muted" />
-                {viability.financing ? (
+                {((viability.financing || viability.installment) || (deal.termMonths && deal.termMonths > 0 && !deal.financingEnabled && monthlyPayment > 0)) && remainingBalanceAtSale > 0 ? (
                   <Row
                     label="Quitação do saldo devedor"
                     value={`- ${formatBRL(remainingBalanceAtSale)}`}
@@ -380,6 +462,11 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
                   ) : (
                     <Row label="Comissão do leiloeiro" value="—" tone="muted" />
                   )}
+                  {advisoryFeeValue > 0 ? (
+                    <Row label="Assessoria" value={formatBRL(advisoryFeeValue)} />
+                  ) : (
+                    <Row label="Assessoria" value="—" tone="muted" />
+                  )}
                   <Row label="Dívida IPTU" value={formatBRL(projectInput.liabilities.iptuDebt)} />
                   <Row label="Dívida condomínio" value={formatBRL(projectInput.liabilities.condoDebt)} />
                 </div>
@@ -388,11 +475,22 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
                   <SectionTitle>Custos no período</SectionTitle>
                   <Row label={`Condomínio total (${formatMonthsLabel(expectedSaleMonths)})`} value={formatBRL(condoTotal)} />
                   <Row label={`IPTU total (${formatMonthsLabel(expectedSaleMonths)})`} value={formatBRL(iptuTotal)} />
-                  <Row label="Juros até a venda" value={formatBRL(interestUntilSale)} />
-                  {viability.financing ? (
-                    <Row label="Saldo devedor na venda" value={formatBRL(remainingBalanceAtSale)} />
+                  {isFinancing && viability.financing ? (
+                    <>
+                      <Row label="Parcelas do financiamento pagas" value={formatBRL(totalPaidInInstallments)} />
+                      <Row label="Juros até a venda" value={formatBRL(interestUntilSale)} />
+                      <Row label="Saldo devedor na venda" value={formatBRL(remainingBalanceAtSale)} />
+                    </>
+                  ) : (isInstallment || (deal.termMonths && deal.termMonths > 0 && !deal.financingEnabled && monthlyPayment > 0)) ? (
+                    <>
+                      <Row label="Parcelas pagas até a venda" value={formatBRL(totalPaidInInstallments)} />
+                      <Row label="Saldo devedor na venda" value={formatBRL(remainingBalanceAtSale)} />
+                    </>
                   ) : (
-                    <Row label="Saldo devedor na venda" value="—" tone="muted" />
+                    <>
+                      <Row label="Juros até a venda" value="—" tone="muted" />
+                      <Row label="Saldo devedor na venda" value="—" tone="muted" />
+                    </>
                   )}
                 </div>
               </div>
@@ -408,10 +506,10 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
                   <SectionTitle>Resumo</SectionTitle>
                   <Row label="Capital necessário (entrada + custos + dívidas)" value={formatBRL(viability.initialInvestment)} />
                   <Row label="Venda líquida" value={formatBRL(viability.saleNet)} />
-                  {viability.financing ? (
-                    <Row label="Venda líquida (após quitar financiamento)" value={formatBRL(viability.saleNetAfterLoan)} />
+                  {(viability.financing || viability.installment) ? (
+                    <Row label="Venda líquida (após quitar saldo devedor)" value={formatBRL(viability.saleNetAfterLoan)} />
                   ) : (
-                    <Row label="Venda líquida (após quitar financiamento)" value={formatBRL(viability.saleNet)} />
+                    <Row label="Venda líquida (após quitar saldo devedor)" value={formatBRL(viability.saleNet)} />
                   )}
                   <Row
                     label={`Imposto de renda (estimado ${(viability.incomeTaxRate * 100).toFixed(0)}%)`}
@@ -462,6 +560,38 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="text-[#9AA6BC]">Saldo devedor estimado na venda ({formatMonthsLabel(viability.financing.monthsConsidered)})</div>
                   <div className="text-white font-medium">{formatBRL(viability.financing.remainingBalanceAtSale)}</div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        ) : viability.installment ? (
+          <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Parcelamento</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-sm">
+              <div className="space-y-1">
+                <div className="text-xs text-[#7C889E]">Número de parcelas</div>
+                <div className="text-white font-medium">{viability.installment.installmentsCount}</div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs text-[#7C889E]">Valor da parcela</div>
+                <div className="text-white font-medium">{formatBRL(viability.installment.monthlyInstallment)}</div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs text-[#7C889E]">Parcelas pagas até a venda</div>
+                <div className="text-white font-medium">{formatBRL(viability.installment.totalPaidUntilSale)}</div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs text-[#7C889E]">Saldo devedor na venda</div>
+                <div className="text-white font-medium">{formatBRL(viability.installment.remainingBalanceAtSale)}</div>
+              </div>
+            </CardContent>
+            <div className="px-6 pb-6">
+              <div className="rounded-xl border border-[#141B29] bg-[#05060B] px-4 py-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-[#9AA6BC]">Parcelamento sem juros - valor fixo mensal</div>
+                  <div className="text-white font-medium">{formatBRL(viability.installment.monthlyInstallment)}/mês</div>
                 </div>
               </div>
             </div>

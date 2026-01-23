@@ -38,6 +38,17 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
   const percentOptional = (v: number | null) => (typeof v === "number" ? String(v) : "")
   const int = (v: number | null, fallback: string) => (typeof v === "number" ? String(v) : fallback)
 
+  // Inferir paymentType baseado nos dados existentes
+  // Se tiver financiamento habilitado, é financing
+  // Se tiver termMonths mas não tiver financingEnabled, pode ser parcelamento
+  // Senão é cash
+  const paymentType: "cash" | "installment" | "financing" = 
+    deal.financingEnabled 
+      ? "financing" 
+      : (deal.termMonths && deal.termMonths > 0 && !deal.financingEnabled)
+        ? "installment"  // Inferir como parcelamento se tiver prazo mas não tiver financiamento
+        : "cash"
+
   const defaultValues = {
     propertyName: deal.propertyName ?? "",
     address: deal.address ?? "",
@@ -46,11 +57,20 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
       purchasePrice: money(deal.purchasePrice),
       downPaymentPercent: percent(deal.downPaymentPercent),
       auctioneerFeePercent: percentOptional(deal.auctioneerFeePercent),
+      advisoryFeePercent: percentOptional(deal.advisoryFeePercent),
       itbiPercent: percent(deal.itbiPercent),
       registryCost: money(deal.registryCost),
     },
+    paymentType: paymentType,
+    installment: paymentType === "installment" && deal.termMonths
+      ? {
+          installmentsCount: int(deal.termMonths, "12"),
+        }
+      : {
+          installmentsCount: "12",
+        },
     financing: {
-      enabled: deal.financingEnabled,
+      enabled: true, // Sempre true quando paymentType === "financing"
       interestRateAnnual: percent(deal.interestRateAnnual),
       termMonths: int(deal.termMonths, "360"),
       amortizationType: (deal.amortizationType === "SAC" ? "SAC" : "PRICE") as "SAC" | "PRICE",

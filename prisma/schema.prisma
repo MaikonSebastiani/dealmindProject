@@ -40,6 +40,7 @@ model Deal {
 
   downPaymentPercent      Float?
   auctioneerFeePercent    Float?
+  advisoryFeePercent       Float?   // Porcentagem de assessoria sobre valor de compra
   itbiPercent             Float?
   registryCost            Float?
 

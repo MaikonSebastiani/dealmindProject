@@ -393,8 +393,13 @@ export function DealForm(props: {
         purchasePrice: "",
         downPaymentPercent: "20",
         auctioneerFeePercent: "",
+        advisoryFeePercent: "",
         itbiPercent: "3",
         registryCost: "0,00",
+      },
+      paymentType: "cash",
+      installment: {
+        installmentsCount: "12",
       },
       financing: {
         enabled: true,
@@ -422,7 +427,7 @@ export function DealForm(props: {
 
   const { handleSubmit, formState, control, watch, setValue } = form
   const { errors } = formState
-  const financingEnabled = watch("financing.enabled")
+  const paymentType = watch("paymentType") || "cash"
   const auctioneerFeePercent = watch("acquisition.auctioneerFeePercent") ?? ""
   const isAuction = Number(String(auctioneerFeePercent).replace(",", ".")) > 0
 
@@ -548,7 +553,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.acquisition?.purchasePrice?.message as string | undefined}
-                    className="col-span-2 md:col-span-5"
+                    className="col-span-2 md:col-span-4"
                   />
                 )}
               />
@@ -585,6 +590,22 @@ export function DealForm(props: {
                 )}
               />
               <Controller
+                name="acquisition.advisoryFeePercent"
+                control={control}
+                render={({ field }) => (
+                  <PercentField
+                    label="Assessoria (%)"
+                    name="advisoryFeePercent"
+                    optionalHint=""
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={errors.acquisition?.advisoryFeePercent?.message as string | undefined}
+                    className="md:col-span-2"
+                  />
+                )}
+              />
+              <Controller
                 name="acquisition.itbiPercent"
                 control={control}
                 render={({ field }) => (
@@ -612,7 +633,7 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.acquisition?.registryCost?.message as string | undefined}
-                    className="md:col-span-4"
+                    className="col-span-2 md:col-span-4"
                   />
                 )}
               />
@@ -682,78 +703,147 @@ export function DealForm(props: {
               </div>
             </SectionCard>
 
-            <SectionCard title="Financiamento">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between rounded-xl border border-[#141B29] bg-[#05060B] px-3 py-2">
-                  <div>
-                    <div className="text-sm font-medium text-white">Habilitar financiamento</div>
-                    <div className="text-xs text-[#7C889E]">Taxa, prazo e amortização</div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={financingEnabled}
-                    onChange={(e) => setValue("financing.enabled", e.target.checked, { shouldValidate: true })}
-                    className="h-4 w-4 accent-[#4F7DFF]"
-                  />
+            <SectionCard title="Forma de Pagamento">
+              <div className="space-y-4">
+                {/* Seleção de tipo de pagamento */}
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValue("paymentType", "cash", { shouldValidate: true })
+                    }}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      paymentType === "cash"
+                        ? "bg-[#4F7DFF] border-[#4F7DFF] text-white"
+                        : "bg-[#05060B] border-[#141B29] text-[#9AA6BC] hover:bg-[#0B0F17]"
+                    }`}
+                  >
+                    À Vista
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValue("paymentType", "installment", { shouldValidate: true })
+                    }}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      paymentType === "installment"
+                        ? "bg-[#4F7DFF] border-[#4F7DFF] text-white"
+                        : "bg-[#05060B] border-[#141B29] text-[#9AA6BC] hover:bg-[#0B0F17]"
+                    }`}
+                  >
+                    Parcelamento
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValue("paymentType", "financing", { shouldValidate: true })
+                    }}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      paymentType === "financing"
+                        ? "bg-[#4F7DFF] border-[#4F7DFF] text-white"
+                        : "bg-[#05060B] border-[#141B29] text-[#9AA6BC] hover:bg-[#0B0F17]"
+                    }`}
+                  >
+                    Financiamento
+                  </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  <Controller
-                    name="financing.interestRateAnnual"
-                    control={control}
-                    render={({ field }) => (
-                      <PercentField
-                        label="Juros a.a."
-                        name="interestRateAnnual"
-                        required={financingEnabled}
-                        disabled={!financingEnabled}
-                        value={field.value}
-                        onChange={field.onChange}
-                        onBlur={field.onBlur}
-                        error={errors.financing?.interestRateAnnual?.message as string | undefined}
-                      />
-                    )}
-                  />
-                  <Controller
-                    name="financing.termMonths"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        label="Prazo (meses)"
-                        name="termMonths"
-                        required={financingEnabled}
-                        disabled={!financingEnabled}
-                        value={field.value}
-                        onChange={field.onChange}
-                        onBlur={field.onBlur}
-                        error={errors.financing?.termMonths?.message as string | undefined}
-                        placeholder="360"
-                      />
-                    )}
-                  />
-                  <Controller
-                    name="financing.amortizationType"
-                    control={control}
-                    render={({ field }) => (
-                      <div>
-                        <label className="text-sm text-[#9AA6BC]">Amortização</label>
-                        <select
-                          disabled={!financingEnabled}
+                {/* Campos de Parcelamento */}
+                {paymentType === "installment" && (
+                  <div className="rounded-xl border border-[#141B29] bg-[#05060B] p-3 space-y-3">
+                    <div className="text-sm font-medium text-white mb-2">Parcelamento</div>
+                    <Controller
+                      name="installment.installmentsCount"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          label="Número de parcelas"
+                          name="installmentsCount"
+                          required
                           value={field.value}
                           onChange={field.onChange}
                           onBlur={field.onBlur}
-                          className="h-10 w-full rounded-md bg-[#05060B] border border-[#141B29] px-3 text-sm text-white outline-none focus:border-[#2D5BFF] disabled:opacity-60"
-                        >
-                          <option value="PRICE">PRICE</option>
-                          <option value="SAC">SAC</option>
-                        </select>
-                        {errors.financing?.amortizationType?.message && (
-                          <div className="mt-1 text-xs text-rose-400">{String(errors.financing.amortizationType.message)}</div>
+                          error={errors.installment?.installmentsCount?.message as string | undefined}
+                          placeholder="12"
+                        />
+                      )}
+                    />
+                    <div className="text-xs text-[#7C889E] mt-2">
+                      O valor restante (após entrada) será dividido em parcelas iguais sem juros.
+                    </div>
+                  </div>
+                )}
+
+                {/* Campos de Financiamento */}
+                {paymentType === "financing" && (
+                  <div className="rounded-xl border border-[#141B29] bg-[#05060B] p-3 space-y-3">
+                    <div className="text-sm font-medium text-white mb-2">Financiamento</div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <Controller
+                        name="financing.interestRateAnnual"
+                        control={control}
+                        render={({ field }) => (
+                          <PercentField
+                            label="Juros a.a."
+                            name="interestRateAnnual"
+                            required
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            error={errors.financing?.interestRateAnnual?.message as string | undefined}
+                          />
                         )}
-                      </div>
-                    )}
-                  />
-                </div>
+                      />
+                      <Controller
+                        name="financing.termMonths"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField
+                            label="Prazo (meses)"
+                            name="termMonths"
+                            required
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            error={errors.financing?.termMonths?.message as string | undefined}
+                            placeholder="360"
+                          />
+                        )}
+                      />
+                      <Controller
+                        name="financing.amortizationType"
+                        control={control}
+                        render={({ field }) => (
+                          <div>
+                            <label className="text-sm text-[#9AA6BC]">Amortização</label>
+                            <select
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              className="h-10 w-full rounded-md bg-[#05060B] border border-[#141B29] px-3 text-sm text-white outline-none focus:border-[#2D5BFF]"
+                            >
+                              <option value="PRICE">PRICE</option>
+                              <option value="SAC">SAC</option>
+                            </select>
+                            {errors.financing?.amortizationType?.message && (
+                              <div className="mt-1 text-xs text-rose-400">{String(errors.financing.amortizationType.message)}</div>
+                            )}
+                          </div>
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Mensagem para à vista */}
+                {paymentType === "cash" && (
+                  <div className="rounded-xl border border-[#141B29] bg-[#05060B] p-3">
+                    <div className="text-sm text-[#7C889E]">
+                      Pagamento à vista. O valor total será pago no momento da compra.
+                    </div>
+                  </div>
+                )}
               </div>
             </SectionCard>
           </div>

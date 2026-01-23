@@ -47,8 +47,13 @@ export const projectInputFormSchema = z.object({
     purchasePrice: moneyRequiredPositive,
     downPaymentPercent: percent,
     auctioneerFeePercent: percentOptional,
+    advisoryFeePercent: percentOptional,  // Porcentagem de assessoria sobre valor de compra
     itbiPercent: percent,
     registryCost: money,
+  }),
+  paymentType: z.enum(["cash", "installment", "financing"]),
+  installment: z.object({
+    installmentsCount: intPositive,
   }),
   financing: z.object({
     enabled: z.boolean(),
@@ -76,7 +81,8 @@ export const projectInputFormSchema = z.object({
 export type ProjectInputFromForm = z.infer<typeof projectInputFormSchema>
 
 export function toProjectInput(form: ProjectInputFromForm): ProjectInput {
-  const financing = form.financing.enabled
+  // Quando paymentType é "financing", o financiamento está automaticamente habilitado
+  const financing = form.paymentType === "financing"
     ? {
         enabled: true,
         interestRateAnnual: form.financing.interestRateAnnual,
@@ -85,14 +91,23 @@ export function toProjectInput(form: ProjectInputFromForm): ProjectInput {
       }
     : undefined
 
+  const installment = form.paymentType === "installment"
+    ? {
+        installmentsCount: form.installment.installmentsCount,
+      }
+    : undefined
+
   return {
     acquisition: {
       purchasePrice: form.acquisition.purchasePrice,
       downPaymentPercent: form.acquisition.downPaymentPercent,
       auctioneerFeePercent: form.acquisition.auctioneerFeePercent,
+      advisoryFeePercent: form.acquisition.advisoryFeePercent,
       itbiPercent: form.acquisition.itbiPercent,
       registryCost: form.acquisition.registryCost,
     },
+    paymentType: form.paymentType,
+    installment,
     financing,
     liabilities: {
       iptuDebt: form.liabilities.iptuDebt,
@@ -117,9 +132,16 @@ export const projectInputApiSchema = z.object({
     purchasePrice: z.number().positive(),
     downPaymentPercent: z.number().min(0),
     auctioneerFeePercent: z.number().min(0).optional(),
+    advisoryFeePercent: z.number().min(0).optional(),  // Porcentagem de assessoria sobre valor de compra
     itbiPercent: z.number().min(0),
     registryCost: z.number().min(0),
   }),
+  paymentType: z.enum(["cash", "installment", "financing"]),
+  installment: z
+    .object({
+      installmentsCount: z.number().int().positive(),
+    })
+    .optional(),
   financing: z
     .object({
       enabled: z.boolean(),
@@ -149,7 +171,7 @@ export type ProjectInputFromApi = z.infer<typeof projectInputApiSchema>
 
 export function toProjectInputFromApi(api: ProjectInputFromApi): ProjectInput {
   const financing =
-    api.financing && api.financing.enabled
+    api.paymentType === "financing" && api.financing && api.financing.enabled
       ? {
           enabled: true,
           interestRateAnnual: api.financing.interestRateAnnual,
@@ -158,14 +180,23 @@ export function toProjectInputFromApi(api: ProjectInputFromApi): ProjectInput {
         }
       : undefined
 
+  const installment = api.paymentType === "installment" && api.installment
+    ? {
+        installmentsCount: api.installment.installmentsCount,
+      }
+    : undefined
+
   return {
     acquisition: {
       purchasePrice: api.acquisition.purchasePrice,
       downPaymentPercent: api.acquisition.downPaymentPercent,
       auctioneerFeePercent: api.acquisition.auctioneerFeePercent,
+      advisoryFeePercent: api.acquisition.advisoryFeePercent,
       itbiPercent: api.acquisition.itbiPercent,
       registryCost: api.acquisition.registryCost,
     },
+    paymentType: api.paymentType,
+    installment,
     financing,
     liabilities: {
       iptuDebt: api.liabilities.iptuDebt,

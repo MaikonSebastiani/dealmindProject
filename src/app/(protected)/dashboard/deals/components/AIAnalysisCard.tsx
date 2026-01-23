@@ -26,6 +26,13 @@ type OwnerInfo = {
   documentType?: string
 }
 
+type ResolvedLien = {
+  type?: "Hipoteca" | "Penhora" | "Usufruto" | "Alienação Fiduciária" | "Outro"
+  description?: string
+  resolvedDate?: string
+  resolutionType?: "Quitação" | "Baixa" | "Extinção" | "Cancelamento"
+}
+
 type AIAnalysisData = {
   // Dados da matrícula
   propertyRegistry?: {
@@ -41,10 +48,11 @@ type AIAnalysisData = {
     // Compatibilidade com formato antigo (singular)
     currentOwner?: OwnerInfo
     previousOwner?: OwnerInfo
-    hasLien?: boolean
-    hasMortgage?: boolean
-    hasUsufruct?: boolean
-    liens?: string[]
+    hasLien?: boolean // APENAS se penhora estiver ATIVA
+    hasMortgage?: boolean // APENAS se hipoteca estiver ATIVA
+    hasUsufruct?: boolean // APENAS se usufruto estiver ATIVO
+    liens?: string[] // APENAS ônus ATIVOS
+    resolvedLiens?: ResolvedLien[] // Ônus que foram resolvidos/baixados
     iptuDebt?: number
     condoDebt?: number
     lastSalePrice?: number
@@ -52,8 +60,71 @@ type AIAnalysisData = {
     risks?: string[]
     confidence: number
   }
-  // Dados do edital (simplificado - foco em pagamento e ocupação)
+  // Dados do edital (completo)
   auctionNotice?: {
+    auctionInfo?: {
+      auctionType?: string
+      auctionNumber?: string
+      auctionDate?: string
+      auctionTime?: string
+      auctionLocation?: string
+      auctioneerName?: string
+      auctioneerRegistration?: string
+    }
+    legalInfo?: {
+      processNumber?: string
+      court?: string
+      judgeName?: string
+      creditor?: string
+      debtor?: string
+    }
+    propertyInfo?: {
+      address?: string
+      propertyType?: string
+      area?: number
+      description?: string
+      characteristics?: string[]
+    }
+    values?: {
+      minimumBid?: number
+      appraisalValue?: number
+      openingBid?: number
+      incrementPercent?: number
+    }
+    payment?: {
+      auctioneerFeePercent?: number
+      downPaymentPercent?: number
+      downPaymentAmount?: number
+      paymentDeadline?: string
+      paymentDeadlineDays?: number
+      paymentMethod?: string
+      installmentCount?: number
+      installmentInterval?: string
+      paymentConditions?: string
+      acceptsFinancing?: boolean
+      acceptsFGTS?: boolean
+      requiresGuarantee?: boolean
+      guaranteeType?: string
+      additionalCosts?: string
+    }
+    occupation?: {
+      isOccupied?: boolean
+      occupationType?: string
+      occupantName?: string
+      evictionResponsibility?: string
+      evictionDeadline?: string
+      evictionDeadlineDays?: number
+      evictionCost?: string
+    }
+    requirements?: {
+      documentsForBidding?: string[]
+      documentsForPurchase?: string[]
+      participationRequirements?: string
+    }
+    importantNotes?: string[]
+    risks?: string[]
+    confidence: number
+    // Compatibilidade com formato antigo
     auctionType?: string
     auctioneerFeePercent?: number
     downPaymentPercent?: number
@@ -63,8 +134,6 @@ type AIAnalysisData = {
     isOccupied?: boolean
     occupationType?: string
     evictionDeadline?: string
-    risks?: string[]
-    confidence: number
   }
 }
 
@@ -367,12 +436,12 @@ function AnalysisResultModal({
                       </div>
                     )}
 
-                    {/* Ônus e Gravames */}
+                    {/* Ônus e Gravames Ativos */}
                     {(registry.hasLien !== undefined || registry.hasMortgage !== undefined || registry.hasUsufruct !== undefined) && (
                       <div className="rounded-xl bg-[#05060B] border border-[#141B29] p-4">
                         <div className="flex items-center gap-2 mb-3">
                           <Shield className="h-4 w-4 text-amber-400" />
-                          <span className="text-sm font-medium text-white">Ônus e Gravames</span>
+                          <span className="text-sm font-medium text-white">Ônus e Gravames Ativos</span>
                         </div>
                         <div className="flex flex-wrap gap-3">
                           {registry.hasLien !== undefined && (
@@ -406,6 +475,58 @@ function AnalysisResultModal({
                             </div>
                           )}
                         </div>
+                        {/* Detalhes dos ônus ativos */}
+                        {registry.liens && registry.liens.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-[#141B29]/50">
+                            <p className="text-xs text-[#7C889E] mb-2">Detalhes dos ônus ativos:</p>
+                            <ul className="space-y-1">
+                              {registry.liens.map((lien, index) => (
+                                <li key={index} className="text-xs text-rose-300 flex items-start gap-2">
+                                  <span className="text-rose-500 mt-0.5">•</span>
+                                  <span>{lien}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Ônus Resolvidos (Histórico) */}
+                    {registry.resolvedLiens && registry.resolvedLiens.length > 0 && (
+                      <div className="rounded-xl bg-blue-500/10 border border-blue-500/30 p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Check className="h-4 w-4 text-blue-400" />
+                          <span className="text-sm font-medium text-blue-400">Ônus Resolvidos</span>
+                          <span className="text-xs text-blue-300/70">(Histórico - não impactam o imóvel)</span>
+                        </div>
+                        <div className="space-y-2">
+                          {registry.resolvedLiens.map((resolved, index) => (
+                            <div key={index} className="p-3 rounded-lg bg-[#141B29]/50 border border-blue-500/20">
+                              <div className="flex items-start justify-between gap-2 mb-1">
+                                <span className="text-sm font-medium text-blue-300">
+                                  {resolved.type || "Ônus"}
+                                </span>
+                                {resolved.resolutionType && (
+                                  <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-300">
+                                    {resolved.resolutionType}
+                                  </span>
+                                )}
+                              </div>
+                              {resolved.description && (
+                                <p className="text-xs text-blue-200/80 mt-1">{resolved.description}</p>
+                              )}
+                              {resolved.resolvedDate && (
+                                <p className="text-xs text-blue-300/60 mt-1">
+                                  Resolvido em: {formatDateBR(resolved.resolvedDate)}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-blue-300/70 mt-3 italic">
+                          ℹ️ Estes ônus foram registrados no passado mas já foram resolvidos/baixados. O imóvel está livre destes gravames.
+                        </p>
                       </div>
                     )}
 
@@ -450,108 +571,272 @@ function AnalysisResultModal({
               <>
                 {auction ? (
                   <div className="space-y-4">
+                    {/* Informações do Leilão */}
+                    {(auction.auctionInfo || auction.auctionType) && (
+                      <div className="rounded-xl bg-[#05060B] border border-[#141B29] p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Gavel className="h-4 w-4 text-blue-400" />
+                          <span className="text-sm font-medium text-white">Informações do Leilão</span>
+                        </div>
+                        <InfoRow label="Tipo" value={auction.auctionInfo?.auctionType || auction.auctionType} />
+                        <InfoRow label="Número do edital" value={auction.auctionInfo?.auctionNumber} />
+                        <InfoRow label="Data" value={auction.auctionInfo?.auctionDate ? formatDateBR(auction.auctionInfo.auctionDate) : null} />
+                        <InfoRow label="Horário" value={auction.auctionInfo?.auctionTime} />
+                        <InfoRow label="Local" value={auction.auctionInfo?.auctionLocation} />
+                        <InfoRow label="Leiloeiro" value={auction.auctionInfo?.auctioneerName} />
+                        <InfoRow label="Registro do leiloeiro" value={auction.auctionInfo?.auctioneerRegistration} />
+                      </div>
+                    )}
+
+                    {/* Informações Jurídicas */}
+                    {auction.legalInfo && (
+                      <div className="rounded-xl bg-[#05060B] border border-[#141B29] p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <FileText className="h-4 w-4 text-purple-400" />
+                          <span className="text-sm font-medium text-white">Informações Jurídicas</span>
+                        </div>
+                        <InfoRow label="Processo" value={auction.legalInfo.processNumber} />
+                        <InfoRow label="Vara/Foro" value={auction.legalInfo.court} />
+                        <InfoRow label="Juiz" value={auction.legalInfo.judgeName} />
+                        <InfoRow label="Credor" value={auction.legalInfo.creditor} />
+                        <InfoRow label="Devedor" value={auction.legalInfo.debtor} />
+                      </div>
+                    )}
+
+                    {/* Informações do Imóvel */}
+                    {auction.propertyInfo && (
+                      <div className="rounded-xl bg-[#05060B] border border-[#141B29] p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Home className="h-4 w-4 text-emerald-400" />
+                          <span className="text-sm font-medium text-white">Informações do Imóvel</span>
+                        </div>
+                        <InfoRow label="Endereço" value={auction.propertyInfo.address} />
+                        <InfoRow label="Tipo" value={auction.propertyInfo.propertyType} />
+                        <InfoRow label="Área" value={auction.propertyInfo.area ? `${auction.propertyInfo.area} m²` : null} highlight />
+                        {auction.propertyInfo.description && (
+                          <div className="mt-3 p-3 rounded-lg bg-[#141B29]/50">
+                            <p className="text-xs text-[#7C889E] mb-1">Descrição</p>
+                            <p className="text-sm text-white">{auction.propertyInfo.description}</p>
+                          </div>
+                        )}
+                        {auction.propertyInfo.characteristics && auction.propertyInfo.characteristics.length > 0 && (
+                          <div className="mt-3">
+                            <p className="text-xs text-[#7C889E] mb-2">Características</p>
+                            <div className="flex flex-wrap gap-2">
+                              {auction.propertyInfo.characteristics.map((char, idx) => (
+                                <span key={idx} className="text-xs px-2 py-1 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                                  {char}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Valores */}
+                    {auction.values && (
+                      <div className="rounded-xl bg-[#05060B] border border-[#141B29] p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <DollarSign className="h-4 w-4 text-yellow-400" />
+                          <span className="text-sm font-medium text-white">Valores</span>
+                        </div>
+                        <InfoRow label="Lance mínimo" value={auction.values.minimumBid ? formatBRL(auction.values.minimumBid) : null} highlight />
+                        <InfoRow label="Avaliação" value={auction.values.appraisalValue ? formatBRL(auction.values.appraisalValue) : null} />
+                        <InfoRow label="Lance inicial" value={auction.values.openingBid ? formatBRL(auction.values.openingBid) : null} />
+                        <InfoRow label="Incremento" value={auction.values.incrementPercent ? `${auction.values.incrementPercent}%` : null} />
+                      </div>
+                    )}
+
                     {/* Condições de Pagamento */}
-                    {(auction.auctionType || auction.auctioneerFeePercent || auction.downPaymentPercent || auction.paymentConditions || auction.acceptsFinancing !== undefined || auction.acceptsFGTS !== undefined) && (
+                    {(auction.payment || auction.auctioneerFeePercent || auction.downPaymentPercent || auction.paymentConditions || auction.acceptsFinancing !== undefined || auction.acceptsFGTS !== undefined) && (
                       <div className="rounded-xl bg-[#05060B] border border-[#141B29] p-4">
                         <div className="flex items-center gap-2 mb-3">
                           <DollarSign className="h-4 w-4 text-blue-400" />
                           <span className="text-sm font-medium text-white">Condições de Pagamento</span>
                         </div>
-                        <InfoRow label="Tipo de leilão" value={auction.auctionType} />
                         <InfoRow 
                           label="Comissão do leiloeiro" 
-                          value={auction.auctioneerFeePercent ? `${auction.auctioneerFeePercent}%` : null} 
+                          value={auction.payment?.auctioneerFeePercent || auction.auctioneerFeePercent ? `${auction.payment?.auctioneerFeePercent || auction.auctioneerFeePercent}%` : null} 
                         />
                         <InfoRow 
                           label="Entrada mínima" 
-                          value={auction.downPaymentPercent ? `${auction.downPaymentPercent}%` : null} 
+                          value={auction.payment?.downPaymentPercent || auction.downPaymentPercent ? `${auction.payment?.downPaymentPercent || auction.downPaymentPercent}%` : null} 
                         />
-                        {auction.paymentConditions && (
+                        {auction.payment?.downPaymentAmount && (
+                          <InfoRow label="Entrada (valor fixo)" value={formatBRL(auction.payment.downPaymentAmount)} />
+                        )}
+                        <InfoRow label="Prazo de pagamento" value={auction.payment?.paymentDeadline} />
+                        {auction.payment?.paymentDeadlineDays && (
+                          <InfoRow label="Prazo (dias)" value={`${auction.payment.paymentDeadlineDays} dias`} />
+                        )}
+                        <InfoRow label="Forma de pagamento" value={auction.payment?.paymentMethod} />
+                        {auction.payment?.installmentCount && (
+                          <InfoRow label="Número de parcelas" value={auction.payment.installmentCount} />
+                        )}
+                        <InfoRow label="Intervalo das parcelas" value={auction.payment?.installmentInterval} />
+                        {(auction.payment?.paymentConditions || auction.paymentConditions) && (
                           <div className="mt-3 p-3 rounded-lg bg-[#141B29]/50">
                             <p className="text-xs text-[#7C889E] mb-1">Formas de pagamento</p>
-                            <p className="text-sm text-white">{auction.paymentConditions}</p>
+                            <p className="text-sm text-white">{auction.payment?.paymentConditions || auction.paymentConditions}</p>
                           </div>
                         )}
-                        {(auction.acceptsFinancing !== undefined || auction.acceptsFGTS !== undefined) && (
+                        {(auction.payment?.acceptsFinancing !== undefined || auction.acceptsFinancing !== undefined) && (
                           <div className="flex flex-wrap gap-2 mt-3">
-                            {auction.acceptsFinancing !== undefined && (
-                              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
-                                auction.acceptsFinancing 
-                                  ? "bg-emerald-500/10 border border-emerald-500/30" 
-                                  : "bg-rose-500/10 border border-rose-500/30"
-                              }`}>
-                                {auction.acceptsFinancing 
-                                  ? <Check className="h-4 w-4 text-emerald-400" /> 
-                                  : <X className="h-4 w-4 text-rose-400" />
-                                }
-                                <span className={`text-sm ${auction.acceptsFinancing ? "text-emerald-300" : "text-rose-300"}`}>
-                                  Financiamento
-                                </span>
-                              </div>
-                            )}
-                            {auction.acceptsFGTS !== undefined && (
-                              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
-                                auction.acceptsFGTS 
-                                  ? "bg-emerald-500/10 border border-emerald-500/30" 
-                                  : "bg-rose-500/10 border border-rose-500/30"
-                              }`}>
-                                {auction.acceptsFGTS 
-                                  ? <Check className="h-4 w-4 text-emerald-400" /> 
-                                  : <X className="h-4 w-4 text-rose-400" />
-                                }
-                                <span className={`text-sm ${auction.acceptsFGTS ? "text-emerald-300" : "text-rose-300"}`}>
-                                  FGTS
-                                </span>
-                              </div>
-                            )}
+                            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
+                              (auction.payment?.acceptsFinancing ?? auction.acceptsFinancing)
+                                ? "bg-emerald-500/10 border border-emerald-500/30" 
+                                : "bg-rose-500/10 border border-rose-500/30"
+                            }`}>
+                              {(auction.payment?.acceptsFinancing ?? auction.acceptsFinancing)
+                                ? <Check className="h-4 w-4 text-emerald-400" /> 
+                                : <X className="h-4 w-4 text-rose-400" />
+                              }
+                              <span className={`text-sm ${(auction.payment?.acceptsFinancing ?? auction.acceptsFinancing) ? "text-emerald-300" : "text-rose-300"}`}>
+                                Financiamento
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        {(auction.payment?.acceptsFGTS !== undefined || auction.acceptsFGTS !== undefined) && (
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
+                              (auction.payment?.acceptsFGTS ?? auction.acceptsFGTS)
+                                ? "bg-emerald-500/10 border border-emerald-500/30" 
+                                : "bg-rose-500/10 border border-rose-500/30"
+                            }`}>
+                              {(auction.payment?.acceptsFGTS ?? auction.acceptsFGTS)
+                                ? <Check className="h-4 w-4 text-emerald-400" /> 
+                                : <X className="h-4 w-4 text-rose-400" />
+                              }
+                              <span className={`text-sm ${(auction.payment?.acceptsFGTS ?? auction.acceptsFGTS) ? "text-emerald-300" : "text-rose-300"}`}>
+                                FGTS
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        {auction.payment?.requiresGuarantee !== undefined && (
+                          <InfoRow label="Garantia exigida" value={auction.payment.requiresGuarantee ? "Sim" : "Não"} />
+                        )}
+                        <InfoRow label="Tipo de garantia" value={auction.payment?.guaranteeType} />
+                        {auction.payment?.additionalCosts && (
+                          <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                            <p className="text-xs text-amber-400 mb-1">Custos adicionais</p>
+                            <p className="text-sm text-amber-300">{auction.payment.additionalCosts}</p>
                           </div>
                         )}
                       </div>
                     )}
 
                     {/* Ocupação */}
-                    {(auction.isOccupied !== undefined || auction.evictionDeadline || auction.occupationType) && (
+                    {(auction.occupation || auction.isOccupied !== undefined || auction.evictionDeadline || auction.occupationType) && (
                       <div className="rounded-xl bg-[#05060B] border border-[#141B29] p-4">
                         <div className="flex items-center gap-2 mb-3">
                           <Home className="h-4 w-4 text-purple-400" />
                           <span className="text-sm font-medium text-white">Situação do Imóvel</span>
                         </div>
-                        {(auction.isOccupied !== undefined || auction.occupationType) && (
+                        {(auction.occupation?.isOccupied !== undefined || auction.isOccupied !== undefined || auction.occupation?.occupationType || auction.occupationType) && (
                           <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-2 ${
-                            auction.isOccupied === true
+                            (auction.occupation?.isOccupied ?? auction.isOccupied) === true
                               ? "bg-rose-500/10 border border-rose-500/30" 
-                              : auction.isOccupied === false
+                              : (auction.occupation?.isOccupied ?? auction.isOccupied) === false
                                 ? "bg-emerald-500/10 border border-emerald-500/30"
                                 : "bg-amber-500/10 border border-amber-500/30"
                           }`}>
-                            {auction.isOccupied === true 
+                            {(auction.occupation?.isOccupied ?? auction.isOccupied) === true 
                               ? <AlertTriangle className="h-4 w-4 text-rose-400" /> 
-                              : auction.isOccupied === false
+                              : (auction.occupation?.isOccupied ?? auction.isOccupied) === false
                                 ? <Check className="h-4 w-4 text-emerald-400" />
                                 : <AlertTriangle className="h-4 w-4 text-amber-400" />
                             }
                             <span className={`text-sm ${
-                              auction.isOccupied === true 
+                              (auction.occupation?.isOccupied ?? auction.isOccupied) === true 
                                 ? "text-rose-300" 
-                                : auction.isOccupied === false 
+                                : (auction.occupation?.isOccupied ?? auction.isOccupied) === false 
                                   ? "text-emerald-300"
                                   : "text-amber-300"
                             }`}>
-                              {auction.isOccupied === true 
-                                ? `Ocupado${auction.occupationType && auction.occupationType !== "Não informado" ? ` (${auction.occupationType})` : ""}` 
-                                : auction.isOccupied === false
+                              {(auction.occupation?.isOccupied ?? auction.isOccupied) === true 
+                                ? `Ocupado${(auction.occupation?.occupationType || auction.occupationType) && (auction.occupation?.occupationType || auction.occupationType) !== "Não informado" ? ` (${auction.occupation?.occupationType || auction.occupationType})` : ""}` 
+                                : (auction.occupation?.isOccupied ?? auction.isOccupied) === false
                                   ? "Desocupado"
                                   : "Ocupação não informada"
                               }
                             </span>
                           </div>
                         )}
-                        {auction.evictionDeadline && (
+                        <InfoRow label="Nome do ocupante" value={auction.occupation?.occupantName} />
+                        <InfoRow label="Responsabilidade" value={auction.occupation?.evictionResponsibility} />
+                        {(auction.occupation?.evictionDeadline || auction.evictionDeadline) && (
                           <div className="mt-2 p-3 rounded-lg bg-[#141B29]/50">
                             <p className="text-xs text-[#7C889E] mb-1">Responsabilidade / Prazo</p>
-                            <p className="text-sm text-white">{auction.evictionDeadline}</p>
+                            <p className="text-sm text-white">{auction.occupation?.evictionDeadline || auction.evictionDeadline}</p>
                           </div>
                         )}
+                        {auction.occupation?.evictionDeadlineDays && (
+                          <InfoRow label="Prazo (dias)" value={`${auction.occupation.evictionDeadlineDays} dias`} />
+                        )}
+                        <InfoRow label="Custo estimado de desocupação" value={auction.occupation?.evictionCost} />
+                      </div>
+                    )}
+
+                    {/* Requisitos e Documentação */}
+                    {auction.requirements && (
+                      <div className="rounded-xl bg-[#05060B] border border-[#141B29] p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <FileText className="h-4 w-4 text-indigo-400" />
+                          <span className="text-sm font-medium text-white">Requisitos e Documentação</span>
+                        </div>
+                        {auction.requirements.documentsForBidding && auction.requirements.documentsForBidding.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs text-[#7C889E] mb-2">Documentos para participar</p>
+                            <ul className="space-y-1">
+                              {auction.requirements.documentsForBidding.map((doc, idx) => (
+                                <li key={idx} className="text-sm text-white flex items-start gap-2">
+                                  <span className="text-indigo-400 mt-0.5">•</span>
+                                  <span>{doc}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {auction.requirements.documentsForPurchase && auction.requirements.documentsForPurchase.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs text-[#7C889E] mb-2">Documentos para arrematação</p>
+                            <ul className="space-y-1">
+                              {auction.requirements.documentsForPurchase.map((doc, idx) => (
+                                <li key={idx} className="text-sm text-white flex items-start gap-2">
+                                  <span className="text-indigo-400 mt-0.5">•</span>
+                                  <span>{doc}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {auction.requirements.participationRequirements && (
+                          <div className="mt-3 p-3 rounded-lg bg-[#141B29]/50">
+                            <p className="text-xs text-[#7C889E] mb-1">Requisitos para participar</p>
+                            <p className="text-sm text-white">{auction.requirements.participationRequirements}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Observações Importantes */}
+                    {auction.importantNotes && auction.importantNotes.length > 0 && (
+                      <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <AlertTriangle className="h-4 w-4 text-amber-400" />
+                          <span className="text-sm font-medium text-amber-400">Observações Importantes</span>
+                        </div>
+                        <ul className="space-y-2">
+                          {auction.importantNotes.map((note, idx) => (
+                            <li key={idx} className="text-sm text-amber-300 flex items-start gap-2">
+                              <span className="text-amber-500 mt-0.5">⚠</span>
+                              <span>{note}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
                     )}
 
