@@ -3,7 +3,6 @@ import { TrendingUp, DollarSign, Target, BarChart3, Clock, TrendingDown } from "
 import { prisma } from "@/lib/db/prisma"
 import { auth } from "@/auth"
 import { pipelineStatuses, activeStatuses, type DealStatus } from "@/lib/domain/deals/dealStatus"
-import { compareROIWithCDI } from "@/lib/domain/finance/metrics/portfolioMetrics"
 import { calculateAverageSaleTime } from "@/lib/domain/finance/metrics/saleMetrics"
 import { calculateRealizedProfit } from "@/lib/domain/finance/metrics/profitComparison"
 
@@ -23,7 +22,6 @@ type PerformanceMetricsData = {
   portfolioDeals: number
   dealsForSale: number
   soldDeals: number
-  cdiComparison: ReturnType<typeof compareROIWithCDI>
   saleTime: Awaited<ReturnType<typeof calculateAverageSaleTime>>
   realizedProfit: number
 }
@@ -90,10 +88,6 @@ export async function PerformanceMetrics() {
   // Se não há deals à venda/vendidos, taxa é 0
   const saleRate = dealsForSale > 0 ? soldDeals / dealsForSale : 0
 
-  // Comparação com CDI
-  const CDI_ANUAL = 0.1215 // 12.15% a.a.
-  const cdiComparison = compareROIWithCDI(averageROI, CDI_ANUAL)
-
   // Tempo médio de venda
   const saleTime = await calculateAverageSaleTime(session.user.id, prisma)
 
@@ -108,7 +102,6 @@ export async function PerformanceMetrics() {
     portfolioDeals: portfolioDeals.length,
     dealsForSale,
     soldDeals,
-    cdiComparison,
     saleTime,
     realizedProfit,
   }
@@ -131,19 +124,8 @@ export async function PerformanceMetrics() {
               <TrendingUp className="h-3 w-3" />
               <span>ROI Médio dos Deals</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="text-xl font-semibold text-white">
-                {averageROI > 0 ? formatPercent(averageROI) : "—"}
-              </div>
-              {cdiComparison.isAboveCDI ? (
-                <span className="text-xs text-[#32D583] font-medium">
-                  +{cdiComparison.differencePercent.toFixed(1)}% vs CDI
-                </span>
-              ) : cdiComparison.differencePercent > 0 ? (
-                <span className="text-xs text-[#F59E0B] font-medium">
-                  -{cdiComparison.differencePercent.toFixed(1)}% vs CDI
-                </span>
-              ) : null}
+            <div className="text-xl font-semibold text-white">
+              {averageROI > 0 ? formatPercent(averageROI) : "—"}
             </div>
             <div className="text-xs text-[#7C889E]">
               {allDealsWithROI.length} {allDealsWithROI.length === 1 ? "imóvel" : "imóveis"} analisados

@@ -28,10 +28,10 @@ export function Sidebar({ userName = "Usuário", userEmail }: SidebarProps) {
       <div className="space-y-6">
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-xl bg-[#0B1323] border border-[#141B29] flex items-center justify-center shrink-0">
-            <span className="text-sm font-semibold text-white">ib</span>
+            <span className="text-sm font-semibold text-white">FI</span>
           </div>
           <div className="leading-tight min-w-0">
-            <div className="text-sm font-semibold text-white">InvestImóveis</div>
+            <div className="text-sm font-semibold text-white">FlipInvest</div>
             <div className="text-xs text-[#7C889E]">Dashboard</div>
           </div>
         </div>
