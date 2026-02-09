@@ -238,11 +238,7 @@ export default async function DashboardPage({
           <KpiCard
             title="Rentabilidade"
             value={`${(rentabilidadeAnual * 100).toFixed(0)}% a.a.`}
-            delta={
-              rentabilidadeAnual > 0 
-                ? `+${((rentabilidadeAnual - CDI_ANUAL) * 100).toFixed(0)}% vs CDI`
-                : mesesInvestindo > 0 ? `${mesesInvestindo} meses` : "Sem histórico"
-            }
+            delta="Rentabilidade anualizada"
             icon={Percent}
             highlight={rentabilidadeAnual > CDI_ANUAL}
           />

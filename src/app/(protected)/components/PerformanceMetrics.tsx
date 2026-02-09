@@ -15,11 +15,11 @@ function formatPercent(value: number) {
 type PerformanceMetricsData = {
   averageROI: number
   totalMonthlyCashFlow: number
-  conversionRate: number
+  saleRate: number
   totalDeals: number
   portfolioDeals: number
-  pipelineDeals: number
-  convertedDeals: number
+  dealsForSale: number
+  soldDeals: number
 }
 
 export async function PerformanceMetrics() {
@@ -29,69 +29,61 @@ export async function PerformanceMetrics() {
     return null
   }
 
+  // Métricas de performance sempre consideram TODOS os deals (sem filtro de período)
+  // O filtro de período é usado apenas para visualizações, não para métricas agregadas
+  // IMPORTANTE: Sem take/limit - busca TODOS os deals do usuário
   const deals = await prisma.deal.findMany({
-    where: { userId: session.user.id },
+    where: {
+      userId: session.user.id,
+    },
     select: {
       id: true,
       status: true,
       roi: true,
       monthlyCashFlow: true,
+      createdAt: true,
     },
+    // Sem orderBy, take ou skip - busca todos os registros
   })
 
   // Calcular métricas
-  const portfolioDeals = deals.filter((d) => activeStatuses.includes(d.status as DealStatus))
-  const pipelineDeals = deals.filter((d) => pipelineStatuses.includes(d.status as DealStatus))
-
-  // ROI médio do portfólio (apenas deals ativos)
-  const portfolioROIs = portfolioDeals.map((d) => d.roi).filter((roi) => roi > 0)
+  // Considerar TODOS os deals para métricas (não apenas ativos)
+  // ROI médio: considerar todos os deals com ROI > 0
+  const allDealsWithROI = deals.filter((d) => d.roi > 0)
   const averageROI =
-    portfolioROIs.length > 0
-      ? portfolioROIs.reduce((acc, roi) => acc + roi, 0) / portfolioROIs.length
+    allDealsWithROI.length > 0
+      ? allDealsWithROI.reduce((acc, d) => acc + d.roi, 0) / allDealsWithROI.length
       : 0
 
-  // Cash flow total mensal (apenas deals ativos)
+  // Cash flow total mensal: apenas deals ativos (que estão gerando renda)
+  const portfolioDeals = deals.filter((d) => activeStatuses.includes(d.status as DealStatus))
   const totalMonthlyCashFlow = portfolioDeals.reduce(
     (acc, d) => acc + (d.monthlyCashFlow ?? 0),
     0
   )
 
-  // Taxa de conversão: deals que saíram do pipeline para comprado
-  // Buscar histórico de mudanças de status
-  const statusChanges = await prisma.dealStatusChange.findMany({
-    where: {
-      deal: { userId: session.user.id },
-      toStatus: "Comprado",
-    },
-    include: {
-      deal: {
-        select: {
-          id: true,
-          status: true,
-        },
-      },
-    },
-  })
+  // Taxa de Venda: deals que estão ou estiveram "Vendido"
+  // Contar deals vendidos diretamente (status atual = "Vendido")
+  const soldDeals = deals.filter((d) => d.status === "Vendido").length
 
-  // Deals que passaram pelo pipeline e foram comprados
-  const convertedDeals = statusChanges.filter((change) => {
-    // Verificar se o deal já teve status de pipeline antes de ser comprado
-    const deal = deals.find((d) => d.id === change.dealId)
-    return deal && pipelineStatuses.includes(change.deal.fromStatus as DealStatus)
-  }).length
+  // Total de deals que estiveram ou estão à venda OU foram vendidos
+  // Inclui: "À venda" (ainda à venda) + "Vendido" (já vendidos)
+  const dealsForSale = deals.filter((d) => 
+    d.status === "À venda" || d.status === "Vendido"
+  ).length
 
-  // Total de deals que passaram pelo pipeline (incluindo os que ainda estão lá)
-  const totalPipelineDeals = pipelineDeals.length + convertedDeals
-  const conversionRate = totalPipelineDeals > 0 ? convertedDeals / totalPipelineDeals : 0
+  // Taxa de venda: deals vendidos / total de deals à venda (incluindo os já vendidos)
+  // Se não há deals à venda/vendidos, taxa é 0
+  const saleRate = dealsForSale > 0 ? soldDeals / dealsForSale : 0
 
   const metrics: PerformanceMetricsData = {
     averageROI,
     totalMonthlyCashFlow,
-    conversionRate,
+    saleRate,
     totalDeals: deals.length,
     portfolioDeals: portfolioDeals.length,
-    pipelineDeals: pipelineDeals.length,
-    convertedDeals,
+    dealsForSale,
+    soldDeals,
   }
 
   return (
@@ -116,7 +108,7 @@ export async function PerformanceMetrics() {
               {averageROI > 0 ? formatPercent(averageROI) : "—"}
             </div>
             <div className="text-xs text-[#7C889E]">
-              {portfolioDeals.length} {portfolioDeals.length === 1 ? "imóvel" : "imóveis"} no portfólio
+              {allDealsWithROI.length} {allDealsWithROI.length === 1 ? "imóvel" : "imóveis"} analisados
             </div>
           </div>
 
@@ -134,17 +126,17 @@ export async function PerformanceMetrics() {
             </div>
           </div>
 
-          {/* Taxa de Conversão */}
+          {/* Taxa de Venda */}
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs text-[#7C889E]">
               <Target className="h-3 w-3" />
-              <span>Taxa de Conversão</span>
+              <span>Taxa de Venda</span>
             </div>
             <div className="text-xl font-semibold text-white">
-              {conversionRate > 0 ? formatPercent(conversionRate) : "—"}
+              {saleRate > 0 ? formatPercent(saleRate) : "—"}
             </div>
             <div className="text-xs text-[#7C889E]">
-              {convertedDeals} de {totalPipelineDeals} deals convertidos
+              {soldDeals} de {dealsForSale} {dealsForSale === 1 ? "deal vendido" : "deals vendidos"}
             </div>
           </div>
         </div>

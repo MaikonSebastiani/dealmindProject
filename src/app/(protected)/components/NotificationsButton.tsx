@@ -1,5 +1,5 @@
 import { auth } from "@/auth"
-import { getRiskAlerts } from "@/lib/dashboard/getRiskAlerts"
+import { getRiskAlerts, getUnreadAlertIds } from "@/lib/dashboard/getRiskAlerts"
 import { NotificationsDropdown } from "./NotificationsDropdown"
 
 export async function NotificationsButton() {
@@ -9,8 +9,11 @@ export async function NotificationsButton() {
     return null
   }
 
-  const alerts = await getRiskAlerts(session.user.id)
+  const [alerts, readAlertIds] = await Promise.all([
+    getRiskAlerts(session.user.id),
+    getUnreadAlertIds(session.user.id),
+  ])
 
-  return <NotificationsDropdown alerts={alerts} />
+  return <NotificationsDropdown alerts={alerts} readAlertIds={readAlertIds} />
 }
 

@@ -17,6 +17,7 @@ model User {
   deals     Deal[]
   accounts  Account[]
   sessions  Session[]
+  readAlerts ReadAlert[]
 }
 
 model Deal {
@@ -143,4 +144,15 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model ReadAlert {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alertId   String   // ID do alerta (ex: "low_roi_123", "no_ai_456")
+  readAt    DateTime @default(now())
+
+  @@unique([userId, alertId])
+  @@index([userId, readAt])
 }

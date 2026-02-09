@@ -103,3 +103,15 @@ export async function getRiskAlerts(userId: string): Promise<RiskAlert[]> {
   return alerts
 }
 
+/**
+ * Retorna apenas os IDs dos alertas não lidos (para contador do badge)
+ */
+export async function getUnreadAlertIds(userId: string): Promise<Set<string>> {
+  // Buscar alertas já lidos pelo usuário
+  const readAlerts = await prisma.readAlert.findMany({
+    where: { userId },
+    select: { alertId: true },
+  })
+  return new Set(readAlerts.map((a) => a.alertId))
+}
+

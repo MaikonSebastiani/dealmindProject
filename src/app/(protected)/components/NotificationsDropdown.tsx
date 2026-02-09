@@ -1,20 +1,56 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useTransition } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Bell, AlertTriangle, ArrowRight, X } from "lucide-react"
 import type { RiskAlert } from "@/lib/dashboard/getRiskAlerts"
 
 interface NotificationsDropdownProps {
   alerts: RiskAlert[]
+  readAlertIds: Set<string>
 }
 
-export function NotificationsDropdown({ alerts }: NotificationsDropdownProps) {
+export function NotificationsDropdown({ alerts, readAlertIds: initialReadAlertIds }: NotificationsDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [readAlertIds, setReadAlertIds] = useState<Set<string>>(initialReadAlertIds)
+  const [isPending, startTransition] = useTransition()
   const dropdownRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const router = useRouter()
 
-  const alertCount = alerts.length
+  // Contar apenas alertas não lidos para o badge
+  const unreadAlerts = alerts.filter((alert) => !readAlertIds.has(alert.id))
+  const alertCount = unreadAlerts.length
+
+  // Atualizar readAlertIds quando props mudarem
+  useEffect(() => {
+    setReadAlertIds(initialReadAlertIds)
+  }, [initialReadAlertIds])
+
+  const handleAlertClick = async (alertId: string, dealId: string) => {
+    // Marcar como lido (apenas atualiza o contador, não remove da lista)
+    if (!readAlertIds.has(alertId)) {
+      try {
+        await fetch("/api/alerts/read", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ alertId }),
+        })
+
+        // Adicionar aos lidos localmente (atualiza o contador)
+        setReadAlertIds((prev) => new Set([...prev, alertId]))
+      } catch (error) {
+        console.error("Erro ao marcar alerta como lido:", error)
+      }
+    }
+
+    // Fechar dropdown e navegar
+    setIsOpen(false)
+    startTransition(() => {
+      router.push(`/dashboard/deals/${dealId}`)
+    })
+  }
 
   // Fechar dropdown ao clicar fora
   useEffect(() => {
@@ -74,7 +110,7 @@ export function NotificationsDropdown({ alerts }: NotificationsDropdownProps) {
                 <div>
                   <h3 className="text-sm font-semibold text-white">Alertas de Risco</h3>
                   <p className="text-xs text-[#7C889E]">
-                    {alertCount} {alertCount === 1 ? "alerta" : "alertas"}
+                    {alertCount} {alertCount === 1 ? "alerta não lido" : "alertas não lidos"}
                   </p>
                 </div>
               </div>
@@ -98,13 +134,19 @@ export function NotificationsDropdown({ alerts }: NotificationsDropdownProps) {
                 </div>
               ) : (
                 <div className="p-2">
-                  {alerts.map((alert) => (
-                    <Link
-                      key={alert.id}
-                      href={`/dashboard/deals/${alert.dealId}`}
-                      onClick={() => setIsOpen(false)}
-                      className="block p-3 rounded-lg border border-[#141B29] bg-[#0B1323] hover:bg-[#0B1323]/80 transition-colors mb-2 last:mb-0 group"
-                    >
+                  {alerts.map((alert) => {
+                    const isRead = readAlertIds.has(alert.id)
+                    return (
+                      <button
+                        key={alert.id}
+                        onClick={() => handleAlertClick(alert.id, alert.dealId)}
+                        disabled={isPending}
+                        className={`w-full text-left p-3 rounded-lg border border-[#141B29] transition-colors mb-2 last:mb-0 group disabled:opacity-50 disabled:cursor-not-allowed ${
+                          isRead
+                            ? "bg-[#0B1323]/50 opacity-60"
+                            : "bg-[#0B1323] hover:bg-[#0B1323]/80"
+                        }`}
+                      >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -132,8 +174,9 @@ export function NotificationsDropdown({ alerts }: NotificationsDropdownProps) {
                         </div>
                         <ArrowRight className="h-4 w-4 text-[#7C889E] group-hover:text-[#4F7DFF] transition-colors shrink-0 mt-1" />
                       </div>
-                    </Link>
-                  ))}
+                    </button>
+                    )
+                  })}
                 </div>
               )}
             </div>
