@@ -9,14 +9,16 @@ import { useState } from 'react'
 import { Download, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ReportPeriod } from './PeriodSelector'
+import type { ReportStatus } from './StatusFilter'
 
 interface ExportButtonProps {
   reportType: 'portfolio' | 'performance'
   period: ReportPeriod
+  status?: ReportStatus
   label?: string
 }
 
-export function ExportButton({ reportType, period, label = 'Exportar PDF' }: ExportButtonProps) {
+export function ExportButton({ reportType, period, status = 'all', label = 'Exportar PDF' }: ExportButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
 
   const handleExport = async () => {
@@ -24,6 +26,9 @@ export function ExportButton({ reportType, period, label = 'Exportar PDF' }: Exp
     try {
       const url = new URL(`/api/reports/${reportType}`, window.location.origin)
       url.searchParams.set('period', period)
+      if (status && status !== 'all') {
+        url.searchParams.set('status', status)
+      }
       
       const response = await fetch(url.toString())
       

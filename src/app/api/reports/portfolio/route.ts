@@ -43,11 +43,14 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Obter período da query string
+    // Obter período e status da query string
     const { searchParams } = new URL(req.url)
     const periodParam = searchParams.get('period') || 'all'
     const period = (['all', '3m', '6m', '12m'].includes(periodParam) ? periodParam : 'all') as PeriodOption
     const periodStartDate = getPeriodStartDate(period)
+    
+    const statusParam = searchParams.get('status')
+    const statusFilter = statusParam && statusParam !== 'all' ? { status: statusParam } : {}
 
     // Buscar dados do usuário
     const user = await prisma.user.findUnique({
@@ -75,11 +78,12 @@ export async function GET(req: NextRequest) {
         }
       : {}
 
-    // Buscar deals filtrados por período
+    // Buscar deals filtrados por período e status
     const deals = await prisma.deal.findMany({
       where: {
         userId: session.user.id,
         ...dateFilter,
+        ...statusFilter,
       },
       select: {
         id: true,
@@ -172,7 +176,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Labels de período para exibição
+    // Labels de período e status para exibição
     const periodLabels: Record<PeriodOption, string> = {
       all: 'Contexto Geral',
       '3m': 'Últimos 3 meses',
@@ -180,6 +184,8 @@ export async function GET(req: NextRequest) {
       '12m': 'Últimos 12 meses',
       ytd: 'Ano atual',
     }
+
+    const statusLabel = statusParam && statusParam !== 'all' ? statusParam : 'Todos os imóveis'
 
     // Preparar dados para o relatório
     const reportData: PortfolioReportData = {
@@ -189,6 +195,7 @@ export async function GET(req: NextRequest) {
       },
       generatedAt: new Date(),
       period: periodLabels[period],
+      status: statusLabel,
       metrics: {
         totalDeals,
         portfolioDeals: portfolioCount,

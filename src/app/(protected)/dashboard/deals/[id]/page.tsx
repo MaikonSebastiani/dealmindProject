@@ -151,6 +151,26 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
     notFound()
   }
 
+  // Buscar data de locação (quando status mudou para "Alugado")
+  const rentalDate = deal.status === "Alugado"
+    ? await prisma.dealStatusChange.findFirst({
+        where: {
+          dealId: deal.id,
+          toStatus: "Alugado",
+        },
+        orderBy: { changedAt: "asc" },
+        select: { changedAt: true },
+      })
+    : null
+
+  function formatDateBR(date: Date) {
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+  }
+
   // Inferir paymentType baseado nos dados existentes
   // Se tiver financiamento habilitado, é financing
   // Se tiver termMonths mas não tiver financingEnabled, pode ser parcelamento (compatibilidade)
@@ -312,6 +332,12 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
               <span>Venda: <span className="text-white font-medium">{formatBRL(projectInput.operationAndExit.resalePrice)}</span></span>
               <span className="hidden sm:inline text-[#2D3748]">•</span>
               <span>Venda estimada em <span className="text-white font-medium">{formatMonthsLabel(expectedSaleMonths)}</span></span>
+              {deal.status === "Alugado" && rentalDate?.changedAt && (
+                <>
+                  <span className="hidden sm:inline text-[#2D3748]">•</span>
+                  <span>Locado em <span className="text-white font-medium">{formatDateBR(rentalDate.changedAt)}</span></span>
+                </>
+              )}
             </div>
           </div>
 

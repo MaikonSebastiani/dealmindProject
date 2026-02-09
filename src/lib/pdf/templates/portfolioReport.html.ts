@@ -201,12 +201,13 @@ export function generatePortfolioReportHTML(data: PortfolioReportData): string {
 <body>
   <div class="container">
   <div class="header">
-    <h1>Relatório de Portfólio</h1>
+    <h1>Relatório de Portfólio${data.status && data.status !== 'Todos os imóveis' && data.status !== 'Todos os status' ? ` (${escapeHtml(data.status)})` : ''}</h1>
     <div class="subtitle">Análise completa do seu portfólio imobiliário</div>
     <div class="meta">
       ${user.name ? `<span>Gerado para: ${escapeHtml(user.name)}</span>` : ''}
       <span>Data: ${formatDateTimeBR(generatedAt)}</span>
       ${data.period ? `<span>Período: ${escapeHtml(data.period)}</span>` : ''}
+      ${data.status ? `<span>Status: ${escapeHtml(data.status)}</span>` : ''}
     </div>
   </div>
 

@@ -11,6 +11,7 @@ export interface PortfolioReportData {
   }
   generatedAt: Date
   period?: string
+  status?: string
   metrics: {
     totalDeals: number
     portfolioDeals: number

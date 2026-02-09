@@ -5,9 +5,11 @@ import { FileText, BarChart3, TrendingUp, Calendar } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ExportButton } from "./components/ExportButton"
 import { PeriodSelector, type ReportPeriod } from "./components/PeriodSelector"
+import { StatusFilter, type ReportStatus } from "./components/StatusFilter"
 
 export default function RelatoriosPage() {
   const [period, setPeriod] = useState<ReportPeriod>('all')
+  const [status, setStatus] = useState<ReportStatus>('all')
 
   return (
     <>
@@ -29,7 +31,7 @@ export default function RelatoriosPage() {
                 <CardTitle className="text-xl">Relatório de Portfólio</CardTitle>
                 <p className="text-sm text-[#7C889E] mt-1">Análise completa do seu portfólio imobiliário</p>
               </div>
-              <ExportButton reportType="portfolio" period={period} />
+              <ExportButton reportType="portfolio" period={period} status={status} />
             </div>
           </CardHeader>
           <CardContent>
@@ -66,20 +68,7 @@ export default function RelatoriosPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-[#05060B] border-[#141B29]">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-amber-500/10">
-                          <FileText className="h-5 w-5 text-amber-400" />
-                        </div>
-                        <div>
-                          <div className="text-xs text-[#7C889E]">Imóveis</div>
-                          <div className="text-lg font-semibold text-white">Todos os deals</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
+                  <StatusFilter value={status} onChange={setStatus} variant="card" />
                   <PeriodSelector value={period} onChange={setPeriod} variant="card" />
                 </div>
 
