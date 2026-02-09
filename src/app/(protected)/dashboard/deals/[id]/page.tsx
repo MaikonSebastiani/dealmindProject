@@ -381,8 +381,31 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
           analysisConfidence={deal.aiAnalysisConfidence}
         />
 
-        {/* Apuração Jurídica - Em Desenvolvimento */}
-        <DueDiligenceCard />
+        {/* Apuração Jurídica */}
+        <DueDiligenceCard
+          dealId={deal.id}
+          hasAIAnalysis={Boolean(deal.aiAnalysisData)}
+          existingData={
+            deal.dueDiligenceData
+              ? (() => {
+                  try {
+                    const parsed = JSON.parse(deal.dueDiligenceData)
+                    // Converter analyzedAt de string para Date se necessário
+                    if (parsed.analyzedAt && typeof parsed.analyzedAt === 'string') {
+                      parsed.analyzedAt = new Date(parsed.analyzedAt)
+                    }
+                    return parsed
+                  } catch (e) {
+                    console.error('Erro ao parsear dueDiligenceData:', e)
+                    return null
+                  }
+                })()
+              : null
+          }
+          riskScore={deal.dueDiligenceRiskScore}
+          riskPercent={deal.dueDiligenceRiskPercent}
+          analysisDate={deal.dueDiligenceDate}
+        />
 
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">

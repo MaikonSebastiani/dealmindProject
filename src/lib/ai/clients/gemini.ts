@@ -32,19 +32,27 @@ export class GeminiVisionClient implements AIVisionClient {
       },
     })
 
-    // Preparar a imagem para o Gemini
-    const imagePart = {
-      inlineData: {
-        data: request.imageBase64,
-        mimeType: request.mimeType,
-      },
-    }
-
     // Combinar system prompt e user prompt (Gemini não tem system prompt separado)
     const combinedPrompt = `${request.systemPrompt}\n\n${request.userPrompt}`
 
     try {
-      const result = await model.generateContent([combinedPrompt, imagePart])
+      // Se não houver imagem, usar apenas texto
+      let content: any[]
+      if (request.imageBase64 && request.mimeType !== "text/plain") {
+        // Preparar a imagem para o Gemini
+        const imagePart = {
+          inlineData: {
+            data: request.imageBase64,
+            mimeType: request.mimeType,
+          },
+        }
+        content = [combinedPrompt, imagePart]
+      } else {
+        // Apenas texto (para análise de processos, não precisa de imagem)
+        content = [combinedPrompt]
+      }
+
+      const result = await model.generateContent(content)
       const response = result.response
       const text = response.text()
 

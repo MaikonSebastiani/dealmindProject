@@ -4,8 +4,11 @@ import { DashboardHeader } from "../components/DashboardHeader"
 import { KpiCard } from "../components/KpiCard"
 import { DashboardChartGrid } from "../components/DashboardChartGrid"
 import { PortfolioTable } from "../components/PortfolioTable"
+import { PerformanceMetrics } from "../components/PerformanceMetrics"
 import { Banknote, Building2, Wallet, Search, Home, BadgeCheck, Key, Percent } from "lucide-react"
 import { activeStatuses, pipelineStatuses, type DealStatus } from "@/lib/domain/deals/dealStatus"
+import { getPeriodStartDate, isDateInPeriod } from "@/lib/utils/dateFilters"
+import type { PeriodOption } from "../components/PeriodFilter"
 
 // Forçar revalidação a cada requisição (sem cache)
 export const dynamic = "force-dynamic"
@@ -33,8 +36,15 @@ function calculateDealProfit(deal: {
   return Math.max(0, resalePrice - deal.purchasePrice - deal.acquisitionCosts - holdingCosts - brokerFee)
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>
+}) {
   const session = await auth()
+  const { period } = await searchParams
+  const periodOption = (period as PeriodOption) || "12m"
+  const periodStartDate = getPeriodStartDate(periodOption)
 
   // Métricas baseadas em status
   let pipelineCount = 0 // Em análise + Aprovado
@@ -55,8 +65,20 @@ export default async function DashboardPage() {
   const CDI_ANUAL = 0.1215 // 12.15% a.a.
 
   if (session?.user?.id) {
+    // Construir filtro de data se necessário
+    const dateFilter = periodStartDate
+      ? {
+          createdAt: {
+            gte: periodStartDate,
+          },
+        }
+      : {}
+
     const deals = await prisma.deal.findMany({
-      where: { userId: session.user.id },
+      where: {
+        userId: session.user.id,
+        ...dateFilter,
+      },
       select: {
         id: true,
         status: true,
@@ -69,6 +91,7 @@ export default async function DashboardPage() {
         expectedSaleMonths: true,
         roi: true,
         monthlyRent: true,
+        createdAt: true,
       },
     })
 
@@ -167,6 +190,9 @@ export default async function DashboardPage() {
       />
 
       <div className="px-4 sm:px-6 lg:px-10 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        {/* Métricas de Performance */}
+        <PerformanceMetrics />
+
         {/* KPIs principais */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <KpiCard

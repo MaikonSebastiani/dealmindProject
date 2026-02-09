@@ -70,11 +70,21 @@ export class DueDiligenceService {
         debtorName: input.debtorName,
       })
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido"
       this.logger.error("Erro ao buscar processos", error, {
         debtorName: input.debtorName,
         debtorDocument: input.debtorDocument,
+        errorMessage,
       })
-      errors.push("Erro ao consultar Escavador")
+      
+      // Adicionar mensagem de erro específica
+      if (errorMessage.includes("autenticação") || errorMessage.includes("chave")) {
+        errors.push("Erro de autenticação na API do Escavador. Verifique sua chave de API.")
+      } else if (errorMessage.includes("Créditos") || errorMessage.includes("limite")) {
+        errors.push("Créditos insuficientes ou limite excedido no Escavador. Verifique sua conta.")
+      } else {
+        errors.push(`Erro ao consultar Escavador: ${errorMessage}`)
+      }
     }
 
     // 2. Analisar com IA

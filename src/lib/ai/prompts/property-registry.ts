@@ -85,7 +85,11 @@ REGRAS PARA IDENTIFICAÇÃO DE ÁREAS:
 
 REGRAS PARA IDENTIFICAÇÃO DE CONSOLIDAÇÃO:
 - Se houver registro de "consolidação da propriedade", "adjudicação", "arrematação" ou "dação em pagamento" em favor de banco/instituição financeira, marque isConsolidated=true
-- Se isConsolidated=true: currentOwners será o banco/credor e previousOwners serão os devedores que perderam o imóvel
+- Se isConsolidated=true: 
+  * currentOwners será o banco/credor
+  * previousOwners DEVE conter TODOS os devedores que perderam o imóvel
+  * ⚠️ CRÍTICO: Se houver DOIS devedores mencionados, extraia AMBOS com nome e CPF
+  * Busque cuidadosamente por todos os nomes e documentos dos devedores no registro de consolidação
 - Se isConsolidated=false: previousOwners pode ser [] ou os proprietários anteriores à última venda regular
 
 REGRAS PARA MÚLTIPLOS PROPRIETÁRIOS (CASAIS):
@@ -93,6 +97,29 @@ REGRAS PARA MÚLTIPLOS PROPRIETÁRIOS (CASAIS):
 - Cada pessoa deve ter seu próprio objeto com name, document e documentType
 - Exemplo para casal: [{"name": "JOÃO SILVA", "document": "12345678901", "documentType": "CPF"}, {"name": "MARIA SILVA", "document": "98765432109", "documentType": "CPF"}]
 - Se não encontrar o documento de um dos cônjuges, ainda inclua com document: null
+
+⚠️ REGRAS CRÍTICAS PARA EXTRAÇÃO DE DEVEDORES (OBRIGATÓRIO):
+- Se a matrícula mencionar DEVEDORES (especialmente em casos de consolidação, penhora, hipoteca ou execução), você DEVE extrair TODOS os devedores mencionados
+- Se houver DOIS devedores mencionados, extraia AMBOS com nome e CPF
+- Se houver MAIS de dois devedores, extraia TODOS
+- Busque por termos como:
+  * "devedor", "devedores"
+  * "executado", "executados"
+  * "devedor principal", "devedor solidário"
+  * Nomes mencionados em registros de penhora, hipoteca, execução
+  * Nomes mencionados em consolidação da propriedade
+- Para cada devedor encontrado, extraia:
+  * Nome completo (OBRIGATÓRIO se mencionado)
+  * CPF (OBRIGATÓRIO se mencionado - apenas números, sem pontos/traços)
+  * Se não encontrar CPF, use document: null mas SEMPRE inclua o nome
+- Se houver consolidação (isConsolidated=true):
+  * previousOwners DEVE conter TODOS os devedores que perderam o imóvel
+  * Se houver dois devedores, previousOwners deve ter DOIS objetos
+  * Exemplo: [{"name": "JOÃO SILVA", "document": "12345678901", "documentType": "CPF"}, {"name": "MARIA SILVA", "document": "98765432109", "documentType": "CPF"}]
+- Se houver penhora ou hipoteca:
+  * Verifique se os devedores são mencionados e inclua em previousOwners se aplicável
+- NUNCA deixe de extrair um devedor se ele estiver mencionado na matrícula
+- Se encontrar apenas um nome mas o contexto indicar que há dois devedores (ex: "devedores", "cônjuges"), busque mais cuidadosamente por ambos
 
 REGRAS CRÍTICAS PARA IDENTIFICAÇÃO DE ÔNUS (ANÁLISE TEMPORAL OBRIGATÓRIA):
 

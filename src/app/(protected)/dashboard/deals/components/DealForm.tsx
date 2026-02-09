@@ -166,7 +166,7 @@ function SectionCard(props: { title: string; children: React.ReactNode }) {
 function DocumentUpload(props: {
   label: string
   description: string
-  inputRef: React.RefObject<HTMLInputElement | null>
+  inputRef: React.RefObject<HTMLInputElement>
   selectedFileName: string | null
   existingFileName: string | null
   onFileSelect: (file: File | null) => void

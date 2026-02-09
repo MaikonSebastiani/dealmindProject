@@ -95,13 +95,64 @@ export class EscavadorProvider {
       )
 
       if (!pessoaResponse.ok) {
+        // SEMPRE capturar corpo da resposta primeiro (mesmo em 404)
+        let errorBody = ""
+        try {
+          errorBody = await pessoaResponse.text()
+        } catch {}
+        
+        // Verificar se há mensagem de erro relacionada a créditos no corpo
+        const errorBodyLower = errorBody.toLowerCase()
+        const hasCreditError = errorBodyLower.includes("crédito") || 
+                               errorBodyLower.includes("credito") ||
+                               errorBodyLower.includes("saldo") ||
+                               errorBodyLower.includes("insuficiente") ||
+                               errorBodyLower.includes("quota") ||
+                               errorBodyLower.includes("limit") ||
+                               errorBodyLower.includes("sem crédito") ||
+                               errorBodyLower.includes("sem credito")
+        
         if (pessoaResponse.status === 404) {
-          this.logger.debug("Pessoa não encontrada por CPF", { cpf: cleanCpf })
+          // Se 404 mas tem mensagem de crédito, tratar como erro de crédito
+          if (hasCreditError) {
+            this.logger.error("Créditos insuficientes no Escavador (detectado em 404)", new Error(`Status 404 com erro de crédito`), {
+              status: pessoaResponse.status,
+              cpf: cleanCpf,
+              errorBody: errorBody.substring(0, 500),
+            })
+            throw new Error("Créditos insuficientes no Escavador. Recarregue sua conta.")
+          }
+          
+          this.logger.debug("Pessoa não encontrada por CPF", { 
+            cpf: cleanCpf,
+            errorBody: errorBody.substring(0, 200), // Logar corpo mesmo em 404 para debug
+          })
           return []
         }
+        
+        // Identificar erros específicos
+        if (pessoaResponse.status === 401 || pessoaResponse.status === 403) {
+          this.logger.error("Erro de autenticação na API Escavador", new Error(`Status ${pessoaResponse.status}`), {
+            status: pessoaResponse.status,
+            cpf: cleanCpf,
+            errorBody: errorBody.substring(0, 500),
+          })
+          throw new Error("Erro de autenticação na API do Escavador. Verifique sua chave de API.")
+        }
+        
+        if (pessoaResponse.status === 402 || pessoaResponse.status === 429 || hasCreditError) {
+          this.logger.error("Créditos insuficientes ou limite excedido no Escavador", new Error(`Status ${pessoaResponse.status}`), {
+            status: pessoaResponse.status,
+            cpf: cleanCpf,
+            errorBody: errorBody.substring(0, 500),
+          })
+          throw new Error("Créditos insuficientes ou limite de requisições excedido no Escavador.")
+        }
+        
         this.logger.error("Erro na API ao buscar por CPF", new Error(`Status ${pessoaResponse.status}`), {
           status: pessoaResponse.status,
           cpf: cleanCpf,
+          errorBody: errorBody.substring(0, 500),
         })
         return []
       }
@@ -140,9 +191,46 @@ export class EscavadorProvider {
       )
 
       if (!searchResponse.ok) {
+        // SEMPRE capturar corpo da resposta primeiro
+        let errorBody = ""
+        try {
+          errorBody = await searchResponse.text()
+        } catch {}
+        
+        // Verificar se há mensagem de erro relacionada a créditos no corpo
+        const errorBodyLower = errorBody.toLowerCase()
+        const hasCreditError = errorBodyLower.includes("crédito") || 
+                               errorBodyLower.includes("credito") ||
+                               errorBodyLower.includes("saldo") ||
+                               errorBodyLower.includes("insuficiente") ||
+                               errorBodyLower.includes("quota") ||
+                               errorBodyLower.includes("limit") ||
+                               errorBodyLower.includes("sem crédito") ||
+                               errorBodyLower.includes("sem credito")
+        
+        // Identificar erros específicos
+        if (searchResponse.status === 401 || searchResponse.status === 403) {
+          this.logger.error("Erro de autenticação na API Escavador", new Error(`Status ${searchResponse.status}`), {
+            status: searchResponse.status,
+            name,
+            errorBody: errorBody.substring(0, 500),
+          })
+          throw new Error("Erro de autenticação na API do Escavador. Verifique sua chave de API.")
+        }
+        
+        if (searchResponse.status === 402 || searchResponse.status === 429 || hasCreditError) {
+          this.logger.error("Créditos insuficientes ou limite excedido no Escavador", new Error(`Status ${searchResponse.status}`), {
+            status: searchResponse.status,
+            name,
+            errorBody: errorBody.substring(0, 500),
+          })
+          throw new Error("Créditos insuficientes ou limite de requisições excedido no Escavador.")
+        }
+        
         this.logger.error("Erro na busca por nome", new Error(`Status ${searchResponse.status}`), {
           status: searchResponse.status,
           name,
+          errorBody: errorBody.substring(0, 500),
         })
         return []
       }
@@ -198,19 +286,59 @@ export class EscavadorProvider {
       )
 
       if (!response.ok) {
+        // SEMPRE capturar corpo da resposta primeiro
+        let errorBody = ""
+        try {
+          errorBody = await response.text()
+        } catch {}
+        
+        // Verificar se há mensagem de erro relacionada a créditos no corpo
+        const errorBodyLower = errorBody.toLowerCase()
+        const hasCreditError = errorBodyLower.includes("crédito") || 
+                               errorBodyLower.includes("credito") ||
+                               errorBodyLower.includes("saldo") ||
+                               errorBodyLower.includes("insuficiente") ||
+                               errorBodyLower.includes("quota") ||
+                               errorBodyLower.includes("limit") ||
+                               errorBodyLower.includes("sem crédito") ||
+                               errorBodyLower.includes("sem credito")
+        
+        // Identificar erros específicos
+        if (response.status === 401 || response.status === 403) {
+          this.logger.error("Erro de autenticação na API Escavador", new Error(`Status ${response.status}`), {
+            status: response.status,
+            pessoaId,
+            errorBody: errorBody.substring(0, 500),
+          })
+          throw new Error("Erro de autenticação na API do Escavador. Verifique sua chave de API.")
+        }
+        
+        if (response.status === 402 || response.status === 429 || hasCreditError) {
+          this.logger.error("Créditos insuficientes ou limite excedido no Escavador", new Error(`Status ${response.status}`), {
+            status: response.status,
+            pessoaId,
+            errorBody: errorBody.substring(0, 500),
+          })
+          throw new Error("Créditos insuficientes ou limite de requisições excedido no Escavador.")
+        }
+        
         this.logger.error("Erro ao buscar processos", new Error(`Status ${response.status}`), {
           status: response.status,
           pessoaId,
+          errorBody: errorBody.substring(0, 500),
         })
         return []
       }
 
       const data = await response.json()
       const processos: EscavadorProcesso[] = data.items || []
+      const totalCount = data.total_count || processos.length
 
-      this.logger.debug("Processos encontrados para pessoa", {
+      this.logger.info("Processos encontrados para pessoa", {
         pessoaId,
         count: processos.length,
+        totalCount,
+        hasMore: totalCount > processos.length,
       })
 
       return processos.map(p => this.normalizeProcesso(p))
@@ -221,38 +349,46 @@ export class EscavadorProvider {
   }
 
   /**
-   * Busca completa por CPF e Nome (deduplica resultados)
+   * Busca completa por CPF/CNPJ apenas (não busca por nome)
    */
   async searchComplete(cpf?: string, name?: string): Promise<LawsuitInfo[]> {
     const allResults: LawsuitInfo[] = []
     const seenNumbers = new Set<string>()
 
-    // 1. Busca por CPF (mais preciso)
-    if (cpf) {
+    this.logger.debug("Iniciando busca por CPF/CNPJ", {
+      cpf: cpf ? `${cpf.substring(0, 3)}***` : "não fornecido",
+      name: name ? "fornecido (não usado)" : "não fornecido",
+    })
+
+    // Busca apenas por CPF/CNPJ (mais preciso e evita falsos positivos)
+    if (!cpf) {
+      this.logger.warn("CPF/CNPJ não fornecido, não é possível buscar processos", {
+        name: name || "não fornecido",
+      })
+      return []
+    }
+
+    try {
       const byCpf = await this.searchByCPF(cpf)
+      this.logger.debug("Resultados da busca por CPF/CNPJ", {
+        encontrados: byCpf.length,
+        processos: byCpf.map(p => p.number),
+      })
       for (const p of byCpf) {
         if (!seenNumbers.has(p.number)) {
           seenNumbers.add(p.number)
           allResults.push(p)
         }
       }
+    } catch (error) {
+      // Erro já foi logado no searchByCPF, apenas propagar
+      throw error
     }
 
-    // 2. Busca por nome (complementar)
-    if (name) {
-      const byName = await this.searchByName(name)
-      for (const p of byName) {
-        if (!seenNumbers.has(p.number)) {
-          seenNumbers.add(p.number)
-          allResults.push(p)
-        }
-      }
-    }
-
-    this.logger.info("Busca completa concluída", {
+    this.logger.info("Busca por CPF/CNPJ concluída", {
       totalProcessos: allResults.length,
-      cpf: cpf ? "fornecido" : "não fornecido",
-      name: name ? "fornecido" : "não fornecido",
+      cpf: "fornecido",
+      processosUnicos: Array.from(seenNumbers),
     })
     return allResults
   }
