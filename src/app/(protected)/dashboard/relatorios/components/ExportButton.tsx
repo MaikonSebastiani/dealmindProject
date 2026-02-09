@@ -8,19 +8,24 @@
 import { useState } from 'react'
 import { Download, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import type { ReportPeriod } from './PeriodSelector'
 
 interface ExportButtonProps {
   reportType: 'portfolio' | 'performance'
+  period: ReportPeriod
   label?: string
 }
 
-export function ExportButton({ reportType, label = 'Exportar PDF' }: ExportButtonProps) {
+export function ExportButton({ reportType, period, label = 'Exportar PDF' }: ExportButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
 
   const handleExport = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/reports/${reportType}`)
+      const url = new URL(`/api/reports/${reportType}`, window.location.origin)
+      url.searchParams.set('period', period)
+      
+      const response = await fetch(url.toString())
       
       if (!response.ok) {
         throw new Error('Erro ao gerar relatório')
@@ -28,13 +33,13 @@ export function ExportButton({ reportType, label = 'Exportar PDF' }: ExportButto
 
       // Criar blob e fazer download
       const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
+      const downloadUrl = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
+      a.href = downloadUrl
       a.download = `relatorio-${reportType}-${new Date().toISOString().split('T')[0]}.pdf`
       document.body.appendChild(a)
       a.click()
-      window.URL.revokeObjectURL(url)
+      window.URL.revokeObjectURL(downloadUrl)
       document.body.removeChild(a)
     } catch (error) {
       console.error('Erro ao exportar relatório:', error)

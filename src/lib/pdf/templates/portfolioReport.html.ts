@@ -206,6 +206,7 @@ export function generatePortfolioReportHTML(data: PortfolioReportData): string {
     <div class="meta">
       ${user.name ? `<span>Gerado para: ${escapeHtml(user.name)}</span>` : ''}
       <span>Data: ${formatDateTimeBR(generatedAt)}</span>
+      ${data.period ? `<span>Período: ${escapeHtml(data.period)}</span>` : ''}
     </div>
   </div>
 
@@ -215,12 +216,12 @@ export function generatePortfolioReportHTML(data: PortfolioReportData): string {
       <div class="metric-card">
         <div class="metric-label">Pipeline</div>
         <div class="metric-value">${metrics.pipelineCount}</div>
-        <div class="metric-delta">${metrics.pipelineCount > 0 ? formatBRL(metrics.pipelineValue) : 'Nenhum deal'}</div>
+        <div class="metric-delta">${metrics.pipelineCount > 0 ? formatBRL(metrics.pipelineValue) : 'Nenhum Imovel'}</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Portfólio Ativo</div>
         <div class="metric-value highlight">${metrics.portfolioDeals}</div>
-        <div class="metric-delta">${metrics.portfolioDeals > 0 ? formatBRL(metrics.portfolioValue) : 'Nenhum deal'}</div>
+        <div class="metric-delta">${metrics.portfolioDeals > 0 ? formatBRL(metrics.portfolioValue) : 'Nenhum Imovel'}</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Alugados</div>

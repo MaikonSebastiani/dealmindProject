@@ -10,6 +10,7 @@ export interface PortfolioReportData {
     email: string
   }
   generatedAt: Date
+  period?: string
   metrics: {
     totalDeals: number
     portfolioDeals: number

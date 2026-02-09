@@ -182,13 +182,13 @@ export default async function DashboardPage() {
           <KpiCard
             title="Pipeline"
             value={String(pipelineCount)}
-            delta={pipelineCount > 0 ? formatBRL(pipelineValue) : "Nenhum deal"}
+            delta={pipelineCount > 0 ? formatBRL(pipelineValue) : "Nenhum Imovel"}
             icon={Search}
           />
           <KpiCard
             title="Portfólio Ativo"
             value={String(portfolioCount)}
-            delta={portfolioCount > 0 ? formatBRL(portfolioValue) : "Nenhum deal"}
+            delta={portfolioCount > 0 ? formatBRL(portfolioValue) : "Nenhum Imovel"}
             icon={Home}
           />
           <KpiCard

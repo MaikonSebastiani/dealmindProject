@@ -46,7 +46,7 @@ export async function PortfolioTable() {
           </CardHeader>
           <CardContent>
             <div className="py-8 text-center text-[#7C889E]">
-              <p>Nenhum deal cadastrado ainda.</p>
+              <p>Nenhum Imovel cadastrado ainda.</p>
               <p className="text-sm mt-1">Comece analisando um novo imóvel.</p>
             </div>
           </CardContent>

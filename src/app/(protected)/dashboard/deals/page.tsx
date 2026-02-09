@@ -122,7 +122,7 @@ function EmptyState() {
     <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
       <CardContent className="py-10">
         <div className="max-w-md mx-auto text-center space-y-3">
-          <div className="text-base font-semibold text-white">Nenhum deal cadastrado</div>
+          <div className="text-base font-semibold text-white">Nenhum Imovel cadastrado</div>
           <div className="text-sm text-[#7C889E]">
             Crie seu primeiro deal para começar a acompanhar ROI, cash flow e risco.
           </div>

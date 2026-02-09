@@ -10,6 +10,8 @@ import { generateReport } from '@/lib/pdf/generateReport'
 import { pipelineStatuses, activeStatuses, type DealStatus } from '@/lib/domain/deals/dealStatus'
 import { logger } from '@/lib/logger'
 import type { PortfolioReportData } from '@/lib/pdf/types'
+import { getPeriodStartDate } from '@/lib/utils/dateFilters'
+import type { PeriodOption } from '@/app/(protected)/components/PeriodFilter'
 
 // Função para calcular lucro de um deal vendido (reutilizada do dashboard)
 function calculateDealProfit(deal: {
@@ -41,6 +43,12 @@ export async function GET(req: NextRequest) {
       )
     }
 
+    // Obter período da query string
+    const { searchParams } = new URL(req.url)
+    const periodParam = searchParams.get('period') || 'all'
+    const period = (['all', '3m', '6m', '12m'].includes(periodParam) ? periodParam : 'all') as PeriodOption
+    const periodStartDate = getPeriodStartDate(period)
+
     // Buscar dados do usuário
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -58,10 +66,20 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Buscar TODOS os deals (sem filtro de período)
+    // Construir filtro de data para deals
+    const dateFilter = periodStartDate
+      ? {
+          createdAt: {
+            gte: periodStartDate,
+          },
+        }
+      : {}
+
+    // Buscar deals filtrados por período
     const deals = await prisma.deal.findMany({
       where: {
         userId: session.user.id,
+        ...dateFilter,
       },
       select: {
         id: true,
@@ -154,6 +172,15 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Labels de período para exibição
+    const periodLabels: Record<PeriodOption, string> = {
+      all: 'Contexto Geral',
+      '3m': 'Últimos 3 meses',
+      '6m': 'Últimos 6 meses',
+      '12m': 'Últimos 12 meses',
+      ytd: 'Ano atual',
+    }
+
     // Preparar dados para o relatório
     const reportData: PortfolioReportData = {
       user: {
@@ -161,6 +188,7 @@ export async function GET(req: NextRequest) {
         email: user.email,
       },
       generatedAt: new Date(),
+      period: periodLabels[period],
       metrics: {
         totalDeals,
         portfolioDeals: portfolioCount,

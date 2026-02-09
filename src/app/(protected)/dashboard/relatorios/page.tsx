@@ -1,8 +1,14 @@
+'use client'
+
+import { useState } from 'react'
 import { FileText, BarChart3, TrendingUp, Calendar } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ExportButton } from "./components/ExportButton"
+import { PeriodSelector, type ReportPeriod } from "./components/PeriodSelector"
 
 export default function RelatoriosPage() {
+  const [period, setPeriod] = useState<ReportPeriod>('all')
+
   return (
     <>
       <header className="bg-[#05060B] border-b border-[#141B29]">
@@ -18,12 +24,12 @@ export default function RelatoriosPage() {
         {/* Card Principal */}
         <Card className="bg-[#0B0F17] border-[#141B29]">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <CardTitle className="text-xl">Relatório de Portfólio</CardTitle>
                 <p className="text-sm text-[#7C889E] mt-1">Análise completa do seu portfólio imobiliário</p>
               </div>
-              <ExportButton reportType="portfolio" />
+              <ExportButton reportType="portfolio" period={period} />
             </div>
           </CardHeader>
           <CardContent>
@@ -74,19 +80,7 @@ export default function RelatoriosPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-[#05060B] border-[#141B29]">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-blue-500/10">
-                          <Calendar className="h-5 w-5 text-blue-400" />
-                        </div>
-                        <div>
-                          <div className="text-xs text-[#7C889E]">Período</div>
-                          <div className="text-lg font-semibold text-white">Contexto geral</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <PeriodSelector value={period} onChange={setPeriod} variant="card" />
                 </div>
 
                 {/* Descrição */}

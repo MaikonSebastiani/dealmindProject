@@ -35,7 +35,7 @@ export function TopDealsRanking({ deals }: { deals?: TopDeal[] }) {
     return (
       <div className="rounded-xl border border-[#141B29] bg-gradient-to-b from-[#0B1323]/60 to-[#0B0F17] flex flex-col items-center justify-center gap-3 py-12">
         <Trophy className="h-10 w-10 text-[#2A3548]" />
-        <p className="text-sm text-[#7C889E]">Nenhum deal vendido ainda</p>
+        <p className="text-sm text-[#7C889E]">Nenhum Imovel vendido ainda</p>
         <p className="text-xs text-[#5A6478]">Complete suas primeiras vendas para ver o ranking</p>
       </div>
     )
