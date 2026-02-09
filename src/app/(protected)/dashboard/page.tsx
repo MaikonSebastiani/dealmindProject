@@ -5,10 +5,8 @@ import { KpiCard } from "../components/KpiCard"
 import { DashboardChartGrid } from "../components/DashboardChartGrid"
 import { PortfolioTable } from "../components/PortfolioTable"
 import { PerformanceMetrics } from "../components/PerformanceMetrics"
-import { Banknote, Building2, Wallet, Search, Home, BadgeCheck, Key, Percent } from "lucide-react"
+import { Banknote, Building2, Search, Home, BadgeCheck, Key, Percent } from "lucide-react"
 import { activeStatuses, pipelineStatuses, type DealStatus } from "@/lib/domain/deals/dealStatus"
-import { getPeriodStartDate, isDateInPeriod } from "@/lib/utils/dateFilters"
-import type { PeriodOption } from "../components/PeriodFilter"
 
 // Forçar revalidação a cada requisição (sem cache)
 export const dynamic = "force-dynamic"
@@ -36,15 +34,8 @@ function calculateDealProfit(deal: {
   return Math.max(0, resalePrice - deal.purchasePrice - deal.acquisitionCosts - holdingCosts - brokerFee)
 }
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ period?: string }>
-}) {
+export default async function DashboardPage() {
   const session = await auth()
-  const { period } = await searchParams
-  const periodOption = (period as PeriodOption) || "12m"
-  const periodStartDate = getPeriodStartDate(periodOption)
 
   // Métricas baseadas em status
   let pipelineCount = 0 // Em análise + Aprovado
@@ -65,19 +56,11 @@ export default async function DashboardPage({
   const CDI_ANUAL = 0.1215 // 12.15% a.a.
 
   if (session?.user?.id) {
-    // Construir filtro de data se necessário
-    const dateFilter = periodStartDate
-      ? {
-          createdAt: {
-            gte: periodStartDate,
-          },
-        }
-      : {}
-
+    // Buscar TODOS os deals (sem filtro de período)
+    // Para investidores imobiliários, o contexto geral é mais relevante
     const deals = await prisma.deal.findMany({
       where: {
         userId: session.user.id,
-        ...dateFilter,
       },
       select: {
         id: true,
@@ -105,7 +88,8 @@ export default async function DashboardPage({
     // Portfólio Ativo: Comprado + Em reforma + Alugado + À venda
     const portfolioDeals = deals.filter(d => activeStatuses.includes(d.status as DealStatus))
     portfolioCount = portfolioDeals.length
-    portfolioValue = portfolioDeals.reduce((acc, d) => acc + d.purchasePrice, 0)
+    // Capital Investido = purchasePrice + acquisitionCosts (custo total de aquisição)
+    portfolioValue = portfolioDeals.reduce((acc, d) => acc + d.purchasePrice + (d.acquisitionCosts ?? 0), 0)
 
     // Vendidos
     const soldDeals = deals.filter(d => d.status === "Vendido")
@@ -222,7 +206,7 @@ export default async function DashboardPage({
         </section>
 
         {/* KPIs secundários */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <KpiCard
             title="Total de Imóveis"
             value={String(totalDeals)}
@@ -236,17 +220,27 @@ export default async function DashboardPage({
             icon={Banknote}
           />
           <KpiCard
-            title="Rentabilidade"
+            title="Rentabilidade do Portfólio Anualizada"
             value={`${(rentabilidadeAnual * 100).toFixed(0)}% a.a.`}
-            delta="Rentabilidade anualizada"
+            delta={
+              rentabilidadeAnual > 0 ? (
+                (() => {
+                  const cdiDifference = rentabilidadeAnual - CDI_ANUAL
+                  const cdiDifferencePercent = Math.abs(cdiDifference) * 100
+                  const isAboveCDI = cdiDifference > 0
+                  return (
+                    <span className={isAboveCDI ? "text-[#32D583]" : "text-[#F59E0B]"}>
+                      {isAboveCDI ? "+" : "-"}
+                      {cdiDifferencePercent.toFixed(1)}% vs CDI
+                    </span>
+                  )
+                })()
+              ) : (
+                "Rentabilidade anualizada"
+              )
+            }
             icon={Percent}
             highlight={rentabilidadeAnual > CDI_ANUAL}
-          />
-          <KpiCard
-            title="Renda Passiva"
-            value={formatBRL(totalRentIncome)}
-            delta={rentingCount > 0 ? `${rentingCount} imóvel(is)` : "Nenhum alugado"}
-            icon={Wallet}
           />
         </section>
 

@@ -1,8 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, DollarSign, Target, BarChart3 } from "lucide-react"
+import { TrendingUp, DollarSign, Target, BarChart3, Clock, TrendingDown } from "lucide-react"
 import { prisma } from "@/lib/db/prisma"
 import { auth } from "@/auth"
 import { pipelineStatuses, activeStatuses, type DealStatus } from "@/lib/domain/deals/dealStatus"
+import { compareROIWithCDI } from "@/lib/domain/finance/metrics/portfolioMetrics"
+import { calculateAverageSaleTime } from "@/lib/domain/finance/metrics/saleMetrics"
+import { calculateRealizedProfit } from "@/lib/domain/finance/metrics/profitComparison"
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -20,6 +23,9 @@ type PerformanceMetricsData = {
   portfolioDeals: number
   dealsForSale: number
   soldDeals: number
+  cdiComparison: ReturnType<typeof compareROIWithCDI>
+  saleTime: Awaited<ReturnType<typeof calculateAverageSaleTime>>
+  realizedProfit: number
 }
 
 export async function PerformanceMetrics() {
@@ -42,6 +48,14 @@ export async function PerformanceMetrics() {
       roi: true,
       monthlyCashFlow: true,
       createdAt: true,
+      resalePrice: true,
+      purchasePrice: true,
+      acquisitionCosts: true,
+      monthlyCondoFee: true,
+      monthlyIptu: true,
+      brokerFeePercent: true,
+      expectedSaleMonths: true,
+      renovationCosts: true,
     },
     // Sem orderBy, take ou skip - busca todos os registros
   })
@@ -76,6 +90,16 @@ export async function PerformanceMetrics() {
   // Se não há deals à venda/vendidos, taxa é 0
   const saleRate = dealsForSale > 0 ? soldDeals / dealsForSale : 0
 
+  // Comparação com CDI
+  const CDI_ANUAL = 0.1215 // 12.15% a.a.
+  const cdiComparison = compareROIWithCDI(averageROI, CDI_ANUAL)
+
+  // Tempo médio de venda
+  const saleTime = await calculateAverageSaleTime(session.user.id, prisma)
+
+  // Lucro realizado (apenas deals vendidos)
+  const realizedProfit = calculateRealizedProfit(deals)
+
   const metrics: PerformanceMetricsData = {
     averageROI,
     totalMonthlyCashFlow,
@@ -84,6 +108,9 @@ export async function PerformanceMetrics() {
     portfolioDeals: portfolioDeals.length,
     dealsForSale,
     soldDeals,
+    cdiComparison,
+    saleTime,
+    realizedProfit,
   }
 
   return (
@@ -97,15 +124,26 @@ export async function PerformanceMetrics() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* ROI Médio */}
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs text-[#7C889E]">
               <TrendingUp className="h-3 w-3" />
-              <span>ROI Médio</span>
+              <span>ROI Médio dos Deals</span>
             </div>
-            <div className="text-xl font-semibold text-white">
-              {averageROI > 0 ? formatPercent(averageROI) : "—"}
+            <div className="flex items-center gap-2">
+              <div className="text-xl font-semibold text-white">
+                {averageROI > 0 ? formatPercent(averageROI) : "—"}
+              </div>
+              {cdiComparison.isAboveCDI ? (
+                <span className="text-xs text-[#32D583] font-medium">
+                  +{cdiComparison.differencePercent.toFixed(1)}% vs CDI
+                </span>
+              ) : cdiComparison.differencePercent > 0 ? (
+                <span className="text-xs text-[#F59E0B] font-medium">
+                  -{cdiComparison.differencePercent.toFixed(1)}% vs CDI
+                </span>
+              ) : null}
             </div>
             <div className="text-xs text-[#7C889E]">
               {allDealsWithROI.length} {allDealsWithROI.length === 1 ? "imóvel" : "imóveis"} analisados
@@ -137,6 +175,40 @@ export async function PerformanceMetrics() {
             </div>
             <div className="text-xs text-[#7C889E]">
               {soldDeals} de {dealsForSale} {dealsForSale === 1 ? "deal vendido" : "deals vendidos"}
+            </div>
+          </div>
+
+          {/* Tempo Médio de Venda */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs text-[#7C889E]">
+              <Clock className="h-3 w-3" />
+              <span>Tempo Médio de Venda</span>
+            </div>
+            <div className="text-xl font-semibold text-white">
+              {saleTime.averageMonths !== null
+                ? `${saleTime.averageMonths} ${saleTime.averageMonths === 1 ? "mês" : "meses"}`
+                : "—"}
+            </div>
+            <div className="text-xs text-[#7C889E]">
+              {saleTime.totalSales > 0
+                ? `Baseado em ${saleTime.totalSales} ${saleTime.totalSales === 1 ? "venda" : "vendas"}`
+                : "Sem vendas registradas"}
+            </div>
+          </div>
+
+          {/* Lucro Realizado */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs text-[#7C889E]">
+              <TrendingDown className="h-3 w-3" />
+              <span>Lucro Realizado</span>
+            </div>
+            <div className="text-xl font-semibold text-white">
+              {realizedProfit > 0 ? formatBRL(realizedProfit) : "R$ 0"}
+            </div>
+            <div className="text-xs text-[#7C889E]">
+              {soldDeals > 0
+                ? `${soldDeals} ${soldDeals === 1 ? "imóvel vendido" : "imóveis vendidos"}`
+                : "Nenhuma venda realizada"}
             </div>
           </div>
         </div>

@@ -1,5 +1,4 @@
 import { UserMenu } from "./UserMenu"
-import { PeriodFilter } from "./PeriodFilter"
 import { NotificationsButton } from "./NotificationsButton"
 
 interface DashboardHeaderProps {
@@ -13,17 +12,9 @@ export function DashboardHeader({ userName, userEmail }: DashboardHeaderProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 sm:px-6 lg:px-10 py-4 sm:py-5 gap-3">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <h1 className="text-lg sm:text-xl font-semibold truncate">Visão Geral</h1>
-          <div className="hidden sm:block">
-            <PeriodFilter />
-          </div>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* Mobile Period Filter */}
-          <div className="sm:hidden">
-            <PeriodFilter />
-          </div>
-          
           {/* Desktop Notifications and User */}
           <div className="hidden lg:flex items-center gap-2 sm:gap-3">
             <NotificationsButton />

@@ -1,10 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { LucideIcon } from "lucide-react"
+import type { ReactNode } from "react"
 
 interface KpiCardProps {
   title: string
   value: string
-  delta: string
+  delta: string | ReactNode
   negative?: boolean
   highlight?: boolean
   icon: LucideIcon
