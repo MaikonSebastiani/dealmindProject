@@ -57,6 +57,11 @@ export const dealFormSchema = z
   .object({
     propertyName: z.string().trim().min(1, "Informe o nome do imóvel"),
     address: z.string().trim().optional(),
+    propertyLink: z
+      .string()
+      .trim()
+      .optional()
+      .refine((v) => !v || v === "" || /^https?:\/\//.test(v), "Informe uma URL válida (http ou https)"),
     propertyType: z.enum(propertyTypes, {
       required_error: "Selecione o tipo de imóvel",
       invalid_type_error: "Tipo de imóvel inválido",
@@ -68,6 +73,7 @@ export const dealFormSchema = z
       advisoryFeePercent: percentOptional,  // Porcentagem de assessoria sobre valor de compra
       itbiPercent: percentRequired,
       registryCost: moneyNonNegative,
+      expectedRoiPercent: percentOptional,  // ROI esperado sobre investimento (%); base para viável ou não
     }),
     paymentType: z.enum(paymentTypes, {
       required_error: "Selecione o tipo de pagamento",

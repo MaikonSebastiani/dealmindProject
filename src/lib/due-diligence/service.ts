@@ -6,6 +6,7 @@
 
 import { createAIVisionClient } from "@/lib/ai/clients"
 import { EscavadorProvider, EscavadorMockProvider } from "./providers/escavador"
+import { EscavadorV2Provider, EscavadorV2MockProvider } from "./providers/escavador-v2"
 import { DUE_DILIGENCE_SYSTEM, buildDueDiligencePrompt } from "./prompts"
 import { logger } from "@/lib/logger"
 import type {
@@ -16,8 +17,9 @@ import type {
 } from "./types"
 
 export class DueDiligenceService {
-  private escavador: EscavadorProvider | EscavadorMockProvider
+  private escavador: EscavadorProvider | EscavadorMockProvider | EscavadorV2Provider | EscavadorV2MockProvider
   private useMock: boolean
+  private useV2: boolean
 
   private logger = logger.withContext("DueDiligence")
 
@@ -25,11 +27,22 @@ export class DueDiligenceService {
     const apiKey = process.env.ESCAVADOR_API_KEY
 
     if (apiKey) {
-      this.escavador = new EscavadorProvider(apiKey)
-      this.useMock = false
-      this.logger.info("Usando API Escavador")
+      // Prioriza V2, mas mantém V1 como fallback se necessário
+      try {
+        this.escavador = new EscavadorV2Provider(apiKey)
+        this.useV2 = true
+        this.useMock = false
+        this.logger.info("Usando API Escavador V2")
+      } catch (error) {
+        // Fallback para V1 se V2 falhar
+        this.escavador = new EscavadorProvider(apiKey)
+        this.useV2 = false
+        this.useMock = false
+        this.logger.info("Usando API Escavador V1 (fallback)")
+      }
     } else {
-      this.escavador = new EscavadorMockProvider()
+      this.escavador = new EscavadorV2MockProvider()
+      this.useV2 = true
       this.useMock = true
       this.logger.warn("Usando mock (sem ESCAVADOR_API_KEY)")
     }

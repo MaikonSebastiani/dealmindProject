@@ -52,6 +52,7 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
   const defaultValues = {
     propertyName: deal.propertyName ?? "",
     address: deal.address ?? "",
+    propertyLink: deal.propertyLink ?? "",
     propertyType: getPropertyType(deal.propertyType),
     acquisition: {
       purchasePrice: money(deal.purchasePrice),
@@ -60,6 +61,7 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
       advisoryFeePercent: percentOptional(deal.advisoryFeePercent),
       itbiPercent: percent(deal.itbiPercent),
       registryCost: money(deal.registryCost),
+      expectedRoiPercent: deal.expectedRoiPercent != null ? String(deal.expectedRoiPercent) : "10",
     },
     paymentType: paymentType,
     installment: paymentType === "installment" && deal.termMonths
@@ -81,6 +83,9 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
     },
     renovation: {
       costs: money(deal.renovationCosts),
+    },
+    evacuation: {
+      costs: money(deal.evacuationCosts),
     },
     operationAndExit: {
       resalePrice: money(deal.resalePrice),

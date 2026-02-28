@@ -8,7 +8,6 @@ import { auth } from "@/auth"
 import { DeleteDealDialog } from "../components/DeleteDealDialog"
 import { DealStatusSelector } from "../components/DealStatusSelector"
 import { AIAnalysisCard } from "../components/AIAnalysisCard"
-import { DueDiligenceCard } from "../components/DueDiligenceCard"
 import { deleteDealAction } from "../actions"
 import { calculateProjectViability } from "@/lib/domain/finance/calculateProjectViability"
 import type { ProjectInput } from "@/lib/domain/deals/projectInput"
@@ -187,6 +186,7 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
   const hasRemainingAmount = remainingAmount > 0
   
   const projectInput: ProjectInput = {
+    expectedRoiPercent: deal.expectedRoiPercent ?? undefined,
     acquisition: {
       purchasePrice: deal.purchasePrice,
       downPaymentPercent: deal.downPaymentPercent ?? 0,
@@ -215,6 +215,9 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
     renovation: {
       costs: deal.renovationCosts ?? 0,
     },
+    evacuation: (deal.evacuationCosts && deal.evacuationCosts > 0) ? {
+      costs: deal.evacuationCosts,
+    } : undefined,
     operationAndExit: {
       resalePrice: deal.resalePrice ?? 0,
       resaleDiscountPercent: deal.resaleDiscountPercent ?? 0,
@@ -290,15 +293,8 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
         ? (monthlyPayment * Math.min(expectedSaleMonths, deal.termMonths ?? expectedSaleMonths))  // Fallback
         : 0
 
-  const viabilityStatus: "Viável" | "Margem apertada" | "Inviável" =
-    deal.roi <= 0 ? "Inviável" : deal.roi < 0.1 ? "Margem apertada" : "Viável"
-
-  const viabilityDetail =
-    viabilityStatus === "Inviável"
-      ? "O projeto não se paga no cenário atual. Ajuste preço, custos ou prazo para reavaliar."
-      : viabilityStatus === "Margem apertada"
-        ? "A rentabilidade anualizada é baixa para o risco do projeto. Reavalie premissas e margem."
-        : "Boa relação risco/retorno no cenário atual. Vale avançar para diligência e negociação."
+  const viabilityStatus = viability.viabilityStatus
+  const viabilityDetail = viability.viabilityDetail
 
   async function deleteFromDialog(formData: FormData) {
     "use server"
@@ -339,6 +335,21 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
                 </>
               )}
             </div>
+            {(deal.address || deal.propertyLink) && (
+              <div className="text-xs sm:text-sm text-[#7C889E] mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+                {deal.address && <span>{deal.address}</span>}
+                {deal.propertyLink && (
+                  <a
+                    href={deal.propertyLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#4F7DFF] hover:underline"
+                  >
+                    Abrir link do imóvel
+                  </a>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -407,31 +418,104 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
           analysisConfidence={deal.aiAnalysisConfidence}
         />
 
-        {/* Apuração Jurídica */}
-        <DueDiligenceCard
-          dealId={deal.id}
-          hasAIAnalysis={Boolean(deal.aiAnalysisData)}
-          existingData={
-            deal.dueDiligenceData
-              ? (() => {
-                  try {
-                    const parsed = JSON.parse(deal.dueDiligenceData)
-                    // Converter analyzedAt de string para Date se necessário
-                    if (parsed.analyzedAt && typeof parsed.analyzedAt === 'string') {
-                      parsed.analyzedAt = new Date(parsed.analyzedAt)
-                    }
-                    return parsed
-                  } catch (e) {
-                    console.error('Erro ao parsear dueDiligenceData:', e)
-                    return null
-                  }
-                })()
-              : null
-          }
-          riskScore={deal.dueDiligenceRiskScore}
-          riskPercent={deal.dueDiligenceRiskPercent}
-          analysisDate={deal.dueDiligenceDate}
-        />
+        {/* Aviso sobre verificação de processos judiciais */}
+        <Card className="bg-gradient-to-br from-[#0B1323] to-[#05060B] border-[#2D5BFF]/30 rounded-2xl">
+          <CardHeader className="pb-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-[#2D5BFF]/10 shrink-0">
+                <FileText className="h-5 w-5 text-[#4F7DFF]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-base text-white mb-1">
+                  Verificação de Processos Judiciais
+                </CardTitle>
+                <p className="text-xs text-[#7C889E]">
+                  Identifique possíveis débitos e ônus que podem afetar o imóvel
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div>
+                <h4 className="text-sm font-semibold text-white mb-2">
+                  Por que verificar processos?
+                </h4>
+                <p className="text-xs text-[#9AA6BC] leading-relaxed">
+                  Processos judiciais podem gerar débitos que seguem o imóvel, mesmo após a compra. 
+                  É essencial verificar antes de fechar o negócio para evitar surpresas desagradáveis.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold text-white mb-2">
+                  Tipos de débitos que podem ser encontrados:
+                </h4>
+                <ul className="space-y-1.5 text-xs text-[#9AA6BC]">
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#FF5A6A] shrink-0 mt-0.5">•</span>
+                    <span><strong className="text-white">Execução de IPTU:</strong> Dívidas fiscais que podem gerar penhora</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#FF5A6A] shrink-0 mt-0.5">•</span>
+                    <span><strong className="text-white">Despesas condominiais:</strong> Dívidas que seguem o imóvel mesmo após venda</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#FF5A6A] shrink-0 mt-0.5">•</span>
+                    <span><strong className="text-white">Execução bancária:</strong> Processos de penhora por dívidas do antigo proprietário</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#FF5A6A] shrink-0 mt-0.5">•</span>
+                    <span><strong className="text-white">Usucapião:</strong> Disputas sobre propriedade do imóvel</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#FF5A6A] shrink-0 mt-0.5">•</span>
+                    <span><strong className="text-white">Trabalhista:</strong> Processos que podem gerar penhora de bens</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="rounded-lg border border-[#141B29] bg-[#05060B]/50 p-3">
+                <h4 className="text-xs font-semibold text-[#4F7DFF] mb-1.5">
+                  Onde pesquisar:
+                </h4>
+                <div className="space-y-2 text-xs text-[#9AA6BC]">
+                  <div>
+                    <p className="mb-1">
+                      <strong className="text-white">Tribunal de Justiça do Estado (TJ):</strong> Processos de execução geralmente tramitam no TJ do estado onde o imóvel está localizado.
+                    </p>
+                    {deal.address && (
+                      <p className="text-[#7C889E] italic ml-4">
+                        Para este imóvel, verifique no Tribunal de Justiça correspondente ao estado do endereço cadastrado.
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <p>
+                      <strong className="text-white">Tribunais Regionais Federais (TRF):</strong> Processos envolvendo bancos públicos federais (Caixa, BB) ou questões federais podem tramitar nos TRFs. Verifique o TRF da região correspondente ao estado do imóvel:
+                    </p>
+                    <ul className="mt-1.5 ml-4 space-y-1 text-[#7C889E]">
+                      <li>• <strong className="text-white">TRF1:</strong> AC, AM, AP, BA, DF, GO, MA, MT, PA, PI, RO, RR, TO</li>
+                      <li>• <strong className="text-white">TRF2:</strong> ES, RJ</li>
+                      <li>• <strong className="text-white">TRF3:</strong> MS, SP</li>
+                      <li>• <strong className="text-white">TRF4:</strong> PR, RS, SC</li>
+                      <li>• <strong className="text-white">TRF5:</strong> AL, CE, PB, PE, RN, SE</li>
+                      <li>• <strong className="text-white">TRF6:</strong> MG</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-[#0B1323] border border-[#2D5BFF]/20">
+                <div className="text-[#F59E0B] shrink-0 mt-0.5">⚠️</div>
+                <p className="text-xs text-[#9AA6BC] leading-relaxed">
+                  <strong className="text-white">Importante:</strong> Esta verificação deve ser feita manualmente nos sites dos tribunais. 
+                  Recomendamos consultar um advogado para análise completa dos processos encontrados.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           <Card className="bg-[#0B0F17] border-[#141B29] rounded-2xl">
@@ -511,13 +595,19 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
                   ) : (
                     <Row label="Comissão do leiloeiro" value="—" tone="muted" />
                   )}
-                  {advisoryFeeValue > 0 ? (
-                    <Row label="Assessoria" value={formatBRL(advisoryFeeValue)} />
-                  ) : (
-                    <Row label="Assessoria" value="—" tone="muted" />
-                  )}
+                  <Row label="Assessoria" value={formatBRL(advisoryFeeValue)} />
                   <Row label="Dívida IPTU" value={formatBRL(projectInput.liabilities.iptuDebt)} />
                   <Row label="Dívida condomínio" value={formatBRL(projectInput.liabilities.condoDebt)} />
+                  {projectInput.renovation.costs > 0 ? (
+                    <Row label="Custo de reforma" value={formatBRL(projectInput.renovation.costs)} />
+                  ) : (
+                    <Row label="Custo de reforma" value="—" tone="muted" />
+                  )}
+                  {projectInput.evacuation && projectInput.evacuation.costs > 0 ? (
+                    <Row label="Custo de desocupação" value={formatBRL(projectInput.evacuation.costs)} />
+                  ) : (
+                    <Row label="Custo de desocupação" value="—" tone="muted" />
+                  )}
                 </div>
 
                 <div className="space-y-3">

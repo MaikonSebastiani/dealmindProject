@@ -7,4 +7,5 @@
 export * from "./types"
 export * from "./service"
 export { EscavadorProvider, EscavadorMockProvider } from "./providers/escavador"
+export { EscavadorV2Provider, EscavadorV2MockProvider } from "./providers/escavador-v2"
 

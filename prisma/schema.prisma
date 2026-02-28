@@ -28,6 +28,7 @@ model Deal {
   propertyName String?
   propertyType String?
   address      String?
+  propertyLink String?  // Link do imóvel (ex.: anúncio, leilão); opcional
   status       String   @default("Em análise")
 
   purchasePrice        Float
@@ -44,6 +45,7 @@ model Deal {
   advisoryFeePercent       Float?   // Porcentagem de assessoria sobre valor de compra
   itbiPercent             Float?
   registryCost            Float?
+  expectedRoiPercent      Float?   // ROI esperado sobre investimento (%); base para viável ou não
 
   financingEnabled        Boolean @default(false)
   interestRateAnnual      Float?
@@ -54,6 +56,7 @@ model Deal {
   condoDebt               Float?
 
   renovationCosts         Float?   // Custos de reforma
+  evacuationCosts          Float?   // Custos adicionais (custo de desocupação)
 
   resalePrice             Float?
   resaleDiscountPercent   Float?

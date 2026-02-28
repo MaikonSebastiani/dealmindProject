@@ -12,22 +12,42 @@ import type { ReportPeriod } from './PeriodSelector'
 import type { ReportStatus } from './StatusFilter'
 
 interface ExportButtonProps {
-  reportType: 'portfolio' | 'performance'
-  period: ReportPeriod
+  reportType: 'portfolio' | 'performance' | 'viability'
+  period?: ReportPeriod
   status?: ReportStatus
+  dealId?: string | null
   label?: string
 }
 
-export function ExportButton({ reportType, period, status = 'all', label = 'Exportar PDF' }: ExportButtonProps) {
+export function ExportButton({ 
+  reportType, 
+  period, 
+  status = 'all', 
+  dealId,
+  label = 'Exportar PDF' 
+}: ExportButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
 
   const handleExport = async () => {
+    // Validação para relatório de viabilidade
+    if (reportType === 'viability' && !dealId) {
+      alert('Por favor, selecione um imóvel para gerar o relatório de viabilidade.')
+      return
+    }
+
     setIsLoading(true)
     try {
       const url = new URL(`/api/reports/${reportType}`, window.location.origin)
-      url.searchParams.set('period', period)
-      if (status && status !== 'all') {
-        url.searchParams.set('status', status)
+      
+      if (reportType === 'viability') {
+        url.searchParams.set('dealId', dealId!)
+      } else {
+        if (period) {
+          url.searchParams.set('period', period)
+        }
+        if (status && status !== 'all') {
+          url.searchParams.set('status', status)
+        }
       }
       
       const response = await fetch(url.toString())

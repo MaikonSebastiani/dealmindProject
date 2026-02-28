@@ -28,7 +28,13 @@ function priceBalanceAfterK(principal: number, monthlyRate: number, termMonths: 
 
 export function calculateProjectViability(input: ProjectInput) {
   const purchasePrice = input.acquisition.purchasePrice
-  const downPayment = (purchasePrice * input.acquisition.downPaymentPercent) / 100
+  const paymentType = input.paymentType || "cash"
+  
+  // Quando é cash (à vista), o downPayment é o preço total de compra
+  // Quando é financiamento ou parcelamento, usa a porcentagem informada
+  const downPayment = paymentType === "cash"
+    ? purchasePrice
+    : (purchasePrice * input.acquisition.downPaymentPercent) / 100
 
   const itbi = (purchasePrice * input.acquisition.itbiPercent) / 100
   const auctioneerFee = input.acquisition.auctioneerFeePercent
@@ -39,6 +45,7 @@ export function calculateProjectViability(input: ProjectInput) {
     : 0
 
   const renovationCosts = input.renovation?.costs ?? 0
+  const evacuationCosts = input.evacuation?.costs ?? 0
 
   const acquisitionCosts =
     itbi +
@@ -47,7 +54,8 @@ export function calculateProjectViability(input: ProjectInput) {
     advisoryFee +
     input.liabilities.iptuDebt +
     input.liabilities.condoDebt +
-    renovationCosts
+    renovationCosts +
+    evacuationCosts
 
   const initialInvestment = downPayment + acquisitionCosts
 
@@ -59,8 +67,6 @@ export function calculateProjectViability(input: ProjectInput) {
 
   const expectedSaleMonths = input.operationAndExit.expectedSaleMonths
   const remainingAmount = Math.max(0, purchasePrice - downPayment)
-  
-  const paymentType = input.paymentType || "cash"
   const financingEnabled = paymentType === "financing" && Boolean(input.financing?.enabled)
   // Verificar se é parcelamento: paymentType deve ser "installment" E ter installment configurado
   const installmentEnabled = paymentType === "installment" && Boolean(input.installment) && Boolean(input.installment?.installmentsCount)
@@ -168,33 +174,51 @@ export function calculateProjectViability(input: ProjectInput) {
   const incomeTax = profit > 0 ? profit * incomeTaxRate : 0
   const profitAfterTax = profit - incomeTax
 
-  // ROI TOTAL = Lucro / Investimento Total
-  // Representa o retorno sobre todo o capital investido até a venda
-  const roiTotal = totalOutflow > 0 ? profit / totalOutflow : 0
-  
-  // ROI ANUALIZADO = Converte o ROI total para taxa anual
-  // Útil para comparar investimentos com prazos diferentes
-  const roiAnnualized = expectedSaleMonths > 0 
-    ? Math.pow(1 + roiTotal, 12 / expectedSaleMonths) - 1 
-    : 0
-  
-  // ROI APÓS IMPOSTOS = Considera o imposto de renda sobre o lucro
+  // ROI APÓS IMPOSTOS sobre o total desembolsado (mantido para compatibilidade)
   const roiAfterTax = totalOutflow > 0 ? profitAfterTax / totalOutflow : 0
 
+  // ROI sobre o investimento necessário (entrada + custos de aquisição), já líquido de IR
+  // Única métrica de retorno usada: cada transação é independente, sem anualização
+  const roiOnInitialInvestmentAfterTax = initialInvestment > 0 ? profitAfterTax / initialInvestment : 0
+
   const leverageHigh = financingEnabled && input.acquisition.downPaymentPercent < 30
+
+  // Limiar de ROI esperado pelo usuário (%); default 10%
+  const expectedRoiPercent = input.expectedRoiPercent ?? 10
+  const expectedRoiThreshold = expectedRoiPercent / 100
+  const lowROI = roiOnInitialInvestmentAfterTax < expectedRoiThreshold
+
+  // Diagnóstico: abaixo = Inviável, pouca coisa abaixo = Margem apertada, acima ou igual = Viável
+  // Baseado no ROI sobre o capital investido (após IR), sem anualização
+  const MARGEM_APERTADA_TOLERANCE_PP = 3 // pontos percentuais "pouco abaixo"
+  const lowThreshold = Math.max(0, (expectedRoiPercent - MARGEM_APERTADA_TOLERANCE_PP) / 100)
+  const viabilityStatus: "Viável" | "Margem apertada" | "Inviável" =
+    profit < 0
+      ? "Inviável"
+      : roiOnInitialInvestmentAfterTax >= expectedRoiThreshold
+        ? "Viável"
+        : roiOnInitialInvestmentAfterTax >= lowThreshold
+          ? "Margem apertada"
+          : "Inviável"
+  const viabilityDetail =
+    viabilityStatus === "Inviável"
+      ? "O projeto não atinge o ROI esperado ou não se paga no cenário atual. Ajuste preço, custos ou prazo para reavaliar."
+      : viabilityStatus === "Margem apertada"
+        ? "A rentabilidade está um pouco abaixo do ROI esperado para o imóvel. Reavalie premissas e margem."
+        : "O projeto atinge ou supera o ROI esperado. Boa relação risco/retorno no cenário atual."
 
   return {
     initialInvestment,
     acquisitionCosts,
     renovationCosts,
+    evacuationCosts,
     operatingCosts,
     saleNet,
     saleNetAfterLoan,
     totalPaidUntilSale,
     profit,
-    roiTotal,
     roiAfterTax,
-    roiAnnualized,
+    roiOnInitialInvestmentAfterTax,
     incomeTaxRate,
     incomeTax,
     profitAfterTax,
@@ -214,9 +238,11 @@ export function calculateProjectViability(input: ProjectInput) {
       : null,
     risk: {
       negativeProfit: profit < 0,
-      lowROI: roiAnnualized < 0.1,
+      lowROI,
       highLeverage: leverageHigh,
     },
+    viabilityStatus,
+    viabilityDetail,
     paymentType,
     installment: installmentEnabled
       ? {

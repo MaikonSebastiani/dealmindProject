@@ -39,9 +39,22 @@ const intPositive = z
 
 export const propertyTypes = ["Apartamento", "Casa", "Comercial", "Lote"] as const
 
+const percentOptionalDefault = z
+  .string()
+  .trim()
+  .default("")
+  .transform((v) => (v === "" ? undefined : Number(v.replace(",", "."))))
+  .refine((v) => v === undefined || (Number.isFinite(v) && v >= 0), "Percentual inválido")
+
 export const projectInputFormSchema = z.object({
   propertyName: z.string().trim().min(1, "Informe o nome do imóvel"),
   address: z.string().trim().optional(),
+  propertyLink: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v === "" || !v ? undefined : v))
+    .refine((v) => v === undefined || /^https?:\/\//.test(v), "Informe uma URL válida (http ou https)"),
   propertyType: z.enum(propertyTypes),
   acquisition: z.object({
     purchasePrice: moneyRequiredPositive,
@@ -50,6 +63,7 @@ export const projectInputFormSchema = z.object({
     advisoryFeePercent: percentOptional,  // Porcentagem de assessoria sobre valor de compra
     itbiPercent: percent,
     registryCost: money,
+    expectedRoiPercent: percentOptionalDefault,  // ROI esperado sobre investimento (%)
   }),
   paymentType: z.enum(["cash", "installment", "financing"]),
   installment: z.object({
@@ -68,6 +82,9 @@ export const projectInputFormSchema = z.object({
   renovation: z.object({
     costs: money,
   }),
+  evacuation: z.object({
+    costs: money,
+  }).optional(),
   operationAndExit: z.object({
     resalePrice: moneyRequiredPositive,
     resaleDiscountPercent: percent,
@@ -97,7 +114,9 @@ export function toProjectInput(form: ProjectInputFromForm): ProjectInput {
       }
     : undefined
 
+  const expectedRoiPercent = form.acquisition.expectedRoiPercent
   return {
+    expectedRoiPercent: expectedRoiPercent !== undefined && Number.isFinite(expectedRoiPercent) ? expectedRoiPercent : undefined,
     acquisition: {
       purchasePrice: form.acquisition.purchasePrice,
       downPaymentPercent: form.acquisition.downPaymentPercent,
@@ -116,6 +135,9 @@ export function toProjectInput(form: ProjectInputFromForm): ProjectInput {
     renovation: {
       costs: form.renovation.costs,
     },
+    evacuation: form.evacuation ? {
+      costs: form.evacuation.costs,
+    } : undefined,
     operationAndExit: {
       resalePrice: form.operationAndExit.resalePrice,
       resaleDiscountPercent: form.operationAndExit.resaleDiscountPercent,
@@ -155,6 +177,9 @@ export const projectInputApiSchema = z.object({
     condoDebt: z.number().min(0),
   }),
   renovation: z.object({
+    costs: z.number().min(0),
+  }).optional(),
+  evacuation: z.object({
     costs: z.number().min(0),
   }).optional(),
   operationAndExit: z.object({
@@ -204,6 +229,9 @@ export function toProjectInputFromApi(api: ProjectInputFromApi): ProjectInput {
     },
     renovation: {
       costs: api.renovation?.costs ?? 0,
+    },
+    evacuation: {
+      costs: api.evacuation?.costs ?? 0,
     },
     operationAndExit: {
       resalePrice: api.operationAndExit.resalePrice,

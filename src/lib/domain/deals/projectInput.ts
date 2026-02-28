@@ -2,6 +2,8 @@ export type AmortizationType = "PRICE" | "SAC"
 export type PaymentType = "cash" | "installment" | "financing"
 
 export type ProjectInput = {
+  /** ROI esperado sobre o investimento (%); base para considerar viável ou não. Default 10. */
+  expectedRoiPercent?: number
   acquisition: {
     purchasePrice: number
     downPaymentPercent: number
@@ -26,6 +28,9 @@ export type ProjectInput = {
   }
   renovation: {
     costs: number
+  }
+  evacuation?: {
+    costs: number  
   }
   operationAndExit: {
     resalePrice: number

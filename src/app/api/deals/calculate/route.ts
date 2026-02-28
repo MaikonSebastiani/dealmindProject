@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
 
         monthlyCashFlow: 0,
         annualCashFlow: 0,
-        roi: viability.roiTotal,
+        roi: viability.roiOnInitialInvestmentAfterTax,
         capRate: 0,
         paybackYears: 0,
         riskNegativeCashFlow: viability.risk.negativeProfit,

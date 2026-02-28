@@ -47,13 +47,9 @@ export default async function DashboardPage() {
   let totalRentIncome = 0 // Soma do aluguel mensal dos "Alugados"
   let totalDeals = 0
 
-  // Rentabilidade
-  let rentabilidadeAnual = 0
+  // Rentabilidade total sobre capital (sem anualização)
   let rentabilidadeTotal = 0
   let mesesInvestindo = 0
-
-  // CDI aproximado (taxa anual)
-  const CDI_ANUAL = 0.1215 // 12.15% a.a.
 
   if (session?.user?.id) {
     // Buscar TODOS os deals (sem filtro de período)
@@ -155,13 +151,8 @@ export default async function DashboardPage() {
         // Patrimônio atual = carteira + lucros realizados
         const patrimonioAtual = portfolioValue + lucroRealizado
 
-        // Rentabilidade total
+        // Rentabilidade total sobre capital investido (sem anualização)
         rentabilidadeTotal = (patrimonioAtual / capitalInicial) - 1
-
-        // Rentabilidade anualizada: ((1 + total)^(12/meses)) - 1
-        if (mesesInvestindo >= 1) {
-          rentabilidadeAnual = Math.pow(1 + rentabilidadeTotal, 12 / mesesInvestindo) - 1
-        }
       }
     }
   }
@@ -220,27 +211,11 @@ export default async function DashboardPage() {
             icon={Banknote}
           />
           <KpiCard
-            title="Rentabilidade do Portfólio Anualizada"
-            value={`${(rentabilidadeAnual * 100).toFixed(0)}% a.a.`}
-            delta={
-              rentabilidadeAnual > 0 ? (
-                (() => {
-                  const cdiDifference = rentabilidadeAnual - CDI_ANUAL
-                  const cdiDifferencePercent = Math.abs(cdiDifference) * 100
-                  const isAboveCDI = cdiDifference > 0
-                  return (
-                    <span className={isAboveCDI ? "text-[#32D583]" : "text-[#F59E0B]"}>
-                      {isAboveCDI ? "+" : "-"}
-                      {cdiDifferencePercent.toFixed(1)}% vs CDI
-                    </span>
-                  )
-                })()
-              ) : (
-                "Rentabilidade anualizada"
-              )
-            }
+            title="Rentabilidade do Portfólio"
+            value={`${(rentabilidadeTotal * 100).toFixed(1)}%`}
+            delta="Retorno total sobre capital investido"
             icon={Percent}
-            highlight={rentabilidadeAnual > CDI_ANUAL}
+            highlight={rentabilidadeTotal > 0}
           />
         </section>
 

@@ -1052,15 +1052,15 @@ export function AIAnalysisCard({
                 <div className="flex items-center gap-4 text-xs">
                   <div className={`flex items-center gap-1 ${analysisData.propertyRegistry.hasLien ? "text-rose-400" : "text-emerald-400"}`}>
                     {analysisData.propertyRegistry.hasLien ? <AlertTriangle className="h-3 w-3" /> : <Check className="h-3 w-3" />}
-                    Penhora
+                    {analysisData.propertyRegistry.hasLien ? "Penhora" : "Sem penhora"}
                   </div>
                   <div className={`flex items-center gap-1 ${analysisData.propertyRegistry.hasMortgage ? "text-rose-400" : "text-emerald-400"}`}>
                     {analysisData.propertyRegistry.hasMortgage ? <AlertTriangle className="h-3 w-3" /> : <Check className="h-3 w-3" />}
-                    Hipoteca
+                    {analysisData.propertyRegistry.hasMortgage ? "Hipoteca" : "Sem hipoteca"}
                   </div>
                   <div className={`flex items-center gap-1 ${analysisData.propertyRegistry.hasUsufruct ? "text-rose-400" : "text-emerald-400"}`}>
                     {analysisData.propertyRegistry.hasUsufruct ? <AlertTriangle className="h-3 w-3" /> : <Check className="h-3 w-3" />}
-                    Usufruto
+                    {analysisData.propertyRegistry.hasUsufruct ? "Usufruto" : "Sem usufruto"}
                   </div>
                 </div>
               )}

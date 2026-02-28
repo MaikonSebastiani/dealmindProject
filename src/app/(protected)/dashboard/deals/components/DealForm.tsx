@@ -388,6 +388,7 @@ export function DealForm(props: {
     defaultValues: props.defaultValues ?? {
       propertyName: "",
       address: "",
+      propertyLink: "",
       propertyType: "Apartamento",
       acquisition: {
         purchasePrice: "",
@@ -396,6 +397,7 @@ export function DealForm(props: {
         advisoryFeePercent: "",
         itbiPercent: "3",
         registryCost: "0,00",
+        expectedRoiPercent: "10",
       },
       paymentType: "cash",
       installment: {
@@ -412,6 +414,9 @@ export function DealForm(props: {
         condoDebt: "0,00",
       },
       renovation: {
+        costs: "0,00",
+      },
+      evacuation: {
         costs: "0,00",
       },
       operationAndExit: {
@@ -515,6 +520,27 @@ export function DealForm(props: {
                       placeholder="Rua, número, bairro, cidade..."
                       className="h-10 bg-[#05060B] border-[#141B29] text-white placeholder-[#7C889E] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-[#2D5BFF]"
                     />
+                  </div>
+                )}
+              />
+              <Controller
+                name="propertyLink"
+                control={control}
+                render={({ field }) => (
+                  <div className="col-span-2 md:col-span-12">
+                    <label htmlFor="propertyLink" className="text-sm text-[#9AA6BC]">Link do imóvel</label>
+                    <Input
+                      id="propertyLink"
+                      type="url"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      placeholder="https://..."
+                      className="h-10 bg-[#05060B] border-[#141B29] text-white placeholder-[#7C889E] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-[#2D5BFF]"
+                    />
+                    {errors.propertyLink?.message && (
+                      <div className="mt-1 text-xs text-rose-400">{String(errors.propertyLink.message)}</div>
+                    )}
                   </div>
                 )}
               />
@@ -633,7 +659,22 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.acquisition?.registryCost?.message as string | undefined}
-                    className="col-span-2 md:col-span-4"
+                    className="col-span-2 md:col-span-2"
+                  />
+                )}
+              />
+              <Controller
+                name="acquisition.expectedRoiPercent"
+                control={control}
+                render={({ field }) => (
+                  <PercentField
+                    label="ROI esperado sobre investimento (%)"
+                    name="expectedRoiPercent"
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={errors.acquisition?.expectedRoiPercent?.message as string | undefined}
+                    className="col-span-2 md:col-span-2"
                   />
                 )}
               />
@@ -893,6 +934,20 @@ export function DealForm(props: {
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     error={errors.renovation?.costs?.message as string | undefined}
+                  />
+                )}
+              />
+              <Controller
+                name="evacuation.costs"
+                control={control}
+                render={({ field }) => (
+                  <MoneyField
+                    label="Custo de desocupação"
+                    name="evacuationCosts"
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={errors.evacuation?.costs?.message as string | undefined}
                   />
                 )}
               />

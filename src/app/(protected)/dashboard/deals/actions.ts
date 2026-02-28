@@ -24,6 +24,7 @@ function getProjectPayload(formData: FormData) {
     input: toProjectInput(parsed),
     propertyName: parsed.propertyName,
     address: parsed.address,
+    propertyLink: parsed.propertyLink ?? null,
     propertyType: parsed.propertyType,
   }
 }
@@ -45,7 +46,7 @@ export async function createDealAction(formData: FormData) {
   const session = await auth()
   if (!session?.user?.id) redirect("/?callbackUrl=/dashboard")
 
-  const { input, propertyName, address, propertyType } = getProjectPayload(formData)
+  const { input, propertyName, address, propertyLink, propertyType } = getProjectPayload(formData)
   const viability = calculateProjectViability(input)
 
   // Processar arquivos
@@ -60,6 +61,7 @@ export async function createDealAction(formData: FormData) {
       status: initialStatus,
       propertyName,
       address,
+      propertyLink,
       propertyType,
 
       purchasePrice: input.acquisition.purchasePrice,
@@ -73,6 +75,7 @@ export async function createDealAction(formData: FormData) {
       advisoryFeePercent: input.acquisition.advisoryFeePercent ?? null,
       itbiPercent: input.acquisition.itbiPercent,
       registryCost: input.acquisition.registryCost,
+      expectedRoiPercent: input.expectedRoiPercent ?? null,
 
       financingEnabled: input.paymentType === "financing", // Sempre true quando paymentType é "financing"
       interestRateAnnual: input.paymentType === "financing" ? (input.financing?.interestRateAnnual ?? null) : null,
@@ -88,6 +91,7 @@ export async function createDealAction(formData: FormData) {
       condoDebt: input.liabilities.condoDebt,
 
       renovationCosts: input.renovation?.costs ?? 0,
+      evacuationCosts: input.evacuation?.costs ?? 0,
 
       resalePrice: input.operationAndExit.resalePrice,
       resaleDiscountPercent: input.operationAndExit.resaleDiscountPercent,
@@ -98,7 +102,7 @@ export async function createDealAction(formData: FormData) {
 
       monthlyCashFlow: 0,
       annualCashFlow: 0,
-      roi: viability.roiAfterTax,
+      roi: viability.roiOnInitialInvestmentAfterTax,
       capRate: 0,
       paybackYears: 0,
       riskNegativeCashFlow: viability.risk.negativeProfit,
@@ -131,7 +135,7 @@ export async function updateDealAction(dealId: string, formData: FormData) {
   const session = await auth()
   if (!session?.user?.id) redirect("/?callbackUrl=/dashboard")
 
-  const { input, propertyName, address, propertyType } = getProjectPayload(formData)
+  const { input, propertyName, address, propertyLink, propertyType } = getProjectPayload(formData)
   const viability = calculateProjectViability(input)
 
   // Processar arquivos
@@ -166,6 +170,7 @@ export async function updateDealAction(dealId: string, formData: FormData) {
     data: {
       propertyName,
       address,
+      propertyLink,
       propertyType,
     purchasePrice: input.acquisition.purchasePrice,
     acquisitionCosts: viability.acquisitionCosts,
@@ -175,6 +180,7 @@ export async function updateDealAction(dealId: string, formData: FormData) {
     advisoryFeePercent: input.acquisition.advisoryFeePercent ?? null,
     itbiPercent: input.acquisition.itbiPercent,
     registryCost: input.acquisition.registryCost,
+    expectedRoiPercent: input.expectedRoiPercent ?? null,
 
     financingEnabled: input.paymentType === "financing" && Boolean(input.financing?.enabled),
     interestRateAnnual: input.paymentType === "financing" ? (input.financing?.interestRateAnnual ?? null) : null,
@@ -200,7 +206,7 @@ export async function updateDealAction(dealId: string, formData: FormData) {
 
     monthlyCashFlow: 0,
     annualCashFlow: 0,
-      roi: viability.roiAfterTax,
+      roi: viability.roiOnInitialInvestmentAfterTax,
     capRate: 0,
     paybackYears: 0,
     riskNegativeCashFlow: viability.risk.negativeProfit,

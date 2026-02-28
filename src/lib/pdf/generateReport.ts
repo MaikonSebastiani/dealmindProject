@@ -5,7 +5,8 @@
 
 import puppeteer from 'puppeteer'
 import { generatePortfolioReportHTML } from './templates/portfolioReport.html'
-import type { PortfolioReportData, PerformanceReportData, ReportType } from './types'
+import { generateViabilityReportHTML } from './templates/viabilityReport.html'
+import type { PortfolioReportData, PerformanceReportData, ViabilityReportData, ReportType } from './types'
 
 export async function generateReport(
   type: 'portfolio',
@@ -16,13 +17,19 @@ export async function generateReport(
   data: PerformanceReportData
 ): Promise<Buffer>
 export async function generateReport(
+  type: 'viability',
+  data: ViabilityReportData
+): Promise<Buffer>
+export async function generateReport(
   type: ReportType,
-  data: PortfolioReportData | PerformanceReportData
+  data: PortfolioReportData | PerformanceReportData | ViabilityReportData
 ): Promise<Buffer> {
   let html: string
 
   if (type === 'portfolio') {
     html = generatePortfolioReportHTML(data as PortfolioReportData)
+  } else if (type === 'viability') {
+    html = generateViabilityReportHTML(data as ViabilityReportData)
   } else {
     throw new Error(`Tipo de relatório não implementado: ${type}`)
   }

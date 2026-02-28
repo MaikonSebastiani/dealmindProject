@@ -284,7 +284,7 @@ export function generatePortfolioReportHTML(data: PortfolioReportData): string {
   </div>
 
   <div class="footer">
-    Relatório gerado automaticamente pelo DealMind • ${escapeHtml(user.email)}
+    Relatório gerado automaticamente pelo FlipInvest •
   </div>
   </div>
 </body>
